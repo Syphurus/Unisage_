@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Web App API Test</title>
+    <style>
+      body {
+        font-family: monospace;
+        background: #f5f5f5;
+        padding: 20px;
+      }
+      #output {
+        background: white;
+        padding: 20px;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        max-height: 800px;
+        overflow: auto;
+      }
+      .section {
+        margin: 20px 0;
+        padding: 10px;
+        background: #e0e0e0;
+        border-left: 4px solid #333;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Web App Subject Content Test</h1>
+    <div class="section">
+      <h3>
+        Testing web app (via port 3002) making requests to API (port 3000)
+      </h3>
+      <p>Note: This simulates what the web app does internally</p>
+    </div>
+
+    <div id="output">Loading...</div>
+
+    <script>
+      (async () => {
+        const results = [];
+
+        try {
+          results.push("=== Test 1: Direct fetch to API (no auth) ===");
+          const resp1 = await fetch(
+            "http://localhost:3000/api/subjects/b29817e9-6395-4f76-b361-da867efce6bc/content"
+          );
+          const data1 = await resp1.json();
+          results.push("Status: " + resp1.status);
+          results.push("Response keys: " + Object.keys(data1).join(", "));
+          results.push("Data keys: " + Object.keys(data1.data).join(", "));
+          results.push(
+            "Quiz array length: " + (data1.data?.content?.quiz?.length || 0)
+          );
+          results.push(
+            "Long Notes array length: " +
+              (data1.data?.content?.long_notes?.length || 0)
+          );
+          results.push("");
+        } catch (err) {
+          results.push("Error: " + err.message);
+        }
+
+        try {
+          results.push("=== Test 2: Simulating axios intercept behavior ===");
+          const resp2 = await fetch(
+            "http://localhost:3000/api/subjects/b29817e9-6395-4f76-b361-da867efce6bc/content"
+          );
+          const data2 = await resp2.json();
+
+          // Simulate what axios interceptor returns
+          const interceptorResult = data2; // axios interceptor returns response.data which is the HTTP body
+
+          results.push("Interceptor returned: " + typeof interceptorResult);
+          results.push(
+            "Interceptor result keys: " +
+              Object.keys(interceptorResult).join(", ")
+          );
+          results.push(
+            "interceptorResult.data keys: " +
+              Object.keys(interceptorResult.data).join(", ")
+          );
+          results.push(
+            "interceptorResult.data.content.quiz length: " +
+              interceptorResult.data.content.quiz.length
+          );
+          results.push("");
+        } catch (err) {
+          results.push("Error: " + err.message);
+        }
+
+        try {
+          results.push("=== Test 3: What the web page extracts ===");
+          const resp3 = await fetch(
+            "http://localhost:3000/api/subjects/b29817e9-6395-4f76-b361-da867efce6bc/content"
+          );
+          const response = await resp3.json(); // This is what page receives as 'response'
+
+          const innerData = response?.data; // This is what page should extract
+          results.push(
+            "response has keys: " + Object.keys(response).join(", ")
+          );
+          results.push(
+            "response.data has keys: " + Object.keys(innerData).join(", ")
+          );
+          results.push(
+            "response.data.content.quiz type: " + typeof innerData.content.quiz
+          );
+          results.push(
+            "response.data.content.quiz is array: " +
+              Array.isArray(innerData.content.quiz)
+          );
+          results.push(
+            "response.data.content.quiz length: " +
+              innerData.content.quiz.length
+          );
+          results.push(
+            "response.data.content.quiz[0].id: " + innerData.content.quiz[0].id
+          );
+          results.push(
+            "response.data.content.quiz[0].title: " +
+              innerData.content.quiz[0].title
+          );
+          results.push("");
+        } catch (err) {
+          results.push("Error: " + err.message);
+        }
+
+        document.getElementById("output").textContent = results.join("\n");
+      })();
+    </script>
+  </body>
+</html>

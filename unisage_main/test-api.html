@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test API</title>
+  </head>
+  <body>
+    <h1>API Response Test</h1>
+    <pre id="output">Loading...</pre>
+
+    <script>
+      (async () => {
+        try {
+          const response = await fetch(
+            "http://localhost:3000/api/subjects/b29817e9-6395-4f76-b361-da867efce6bc/content"
+          );
+          const data = await response.json();
+
+          document.getElementById("output").textContent = JSON.stringify(
+            {
+              responseKeys: Object.keys(data),
+              dataKeys: Object.keys(data.data),
+              contentKeys: Object.keys(data.data.content),
+              quizArray: {
+                type: Array.isArray(data.data.content.quiz),
+                length: data.data.content.quiz?.length,
+                firstItem: data.data.content.quiz?.[0]
+                  ? {
+                      id: data.data.content.quiz[0].id,
+                      title: data.data.content.quiz[0].title,
+                      hasData: !!data.data.content.quiz[0].data,
+                    }
+                  : null,
+              },
+              longNotesArray: {
+                type: Array.isArray(data.data.content.long_notes),
+                length: data.data.content.long_notes?.length,
+                firstItem: data.data.content.long_notes?.[0]
+                  ? {
+                      id: data.data.content.long_notes[0].id,
+                      title: data.data.content.long_notes[0].title,
+                    }
+                  : null,
+              },
+            },
+            null,
+            2
+          );
+        } catch (err) {
+          document.getElementById("output").textContent =
+            "Error: " + err.message;
+        }
+      })();
+    </script>
+  </body>
+</html>

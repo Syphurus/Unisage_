@@ -1,0 +1,285 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+@layer base {
+  :root {
+    --brand-50: 241 246 255;
+    --brand-100: 226 234 248;
+    --brand-500: 13 27 42;
+    --brand-600: 9 21 34;
+    --brand-700: 6 16 27;
+    --secondary-500: 0 180 166;
+    --accent-500: 245 158 11;
+    --surface-50: 249 249 255;
+    --surface-100: 244 244 252;
+    --surface-200: 235 235 245;
+    --bg: 249 249 255;
+    --fg: 13 27 42;
+    --surface: 255 255 255;
+    --surface-subtle: 244 244 252;
+    --border: 235 235 245;
+    --muted: 112 120 145;
+  }
+
+  .dark {
+    --brand-50: 220 233 255;
+    --brand-100: 190 213 255;
+    --brand-500: 98 151 245;
+    --brand-600: 59 121 224;
+    --brand-700: 36 95 194;
+    --secondary-500: 60 202 191;
+    --accent-500: 248 189 52;
+    --surface-50: 15 23 42;
+    --surface-100: 30 41 59;
+    --surface-200: 51 65 85;
+    --bg: 2 6 23;
+    --fg: 226 232 240;
+    --surface: 15 23 42;
+    --surface-subtle: 30 41 59;
+    --border: 51 65 85;
+    --muted: 148 163 184;
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply font-sans;
+    background-color: rgb(var(--bg));
+    color: rgb(var(--fg));
+    font-size: 14px;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+  }
+
+  /* Prevent zoom on input focus for iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  @media (min-width: 768px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    select,
+    textarea {
+      font-size: 14px !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Page transition wrapper */
+  .page-transition {
+    @apply animate-fade-in;
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-200 ease-out hover:-translate-y-0.5;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-700 via-violet-600 to-cyan-500;
+  }
+
+  .surface-glass {
+    @apply border border-white/70 bg-white/80 shadow-soft backdrop-blur-xl;
+  }
+
+  .surface-glow {
+    @apply shadow-glow;
+  }
+
+  .text-glow {
+    text-shadow: 0 12px 30px rgba(79, 70, 229, 0.14);
+  }
+
+  .soft-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.55) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.55) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  /* Prose styles for notes content */
+  .prose-content {
+    @apply leading-relaxed;
+    color: rgb(var(--muted));
+  }
+
+  .prose-content h1 {
+    @apply text-2xl font-bold mt-8 mb-4 first:mt-0;
+    color: rgb(var(--fg));
+  }
+
+  .prose-content h2 {
+    @apply text-xl font-semibold mt-6 mb-3;
+    color: rgb(var(--fg));
+  }
+
+  .prose-content h3 {
+    @apply text-lg font-medium mt-4 mb-2;
+    color: rgb(var(--fg));
+  }
+
+  .prose-content p {
+    @apply mb-4 text-[14px] leading-6;
+  }
+
+  .prose-content ul,
+  .prose-content ol {
+    @apply mb-4 pl-6;
+  }
+
+  .prose-content ul {
+    @apply list-disc;
+  }
+
+  .prose-content ol {
+    @apply list-decimal;
+  }
+
+  .prose-content li {
+    @apply mb-2 text-[14px] leading-6;
+  }
+
+  .prose-content pre {
+    @apply text-gray-100 rounded-2xl p-4 overflow-x-auto mb-4 text-sm;
+    background-color: #1e1e2e;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+  }
+
+  .prose-content code {
+    @apply bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded-md text-sm font-mono;
+  }
+
+  .prose-content pre code {
+    @apply bg-transparent text-gray-100 p-0;
+  }
+
+  .prose-content blockquote {
+    @apply border-l-4 border-brand-300 pl-4 py-1 my-4 italic bg-brand-50/60 rounded-r-xl;
+    color: rgb(var(--muted));
+  }
+
+  .prose-content table {
+    @apply w-full border-collapse mb-4;
+  }
+
+  .prose-content th {
+    @apply text-left p-3 border font-semibold text-sm;
+    background-color: rgb(var(--surface-subtle));
+    border-color: rgb(var(--border));
+    color: rgb(var(--fg));
+  }
+
+  .prose-content td {
+    @apply p-3 border text-sm;
+    border-color: rgb(var(--border));
+    color: rgb(var(--muted));
+  }
+
+  .prose-content strong {
+    @apply font-semibold;
+    color: rgb(var(--fg));
+  }
+
+  .prose-content a {
+    @apply text-brand-600 hover:text-brand-700 underline;
+  }
+
+  .unisage-card {
+    border: 1px solid #ebebf5;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+  }
+
+  .prose-content img {
+    @apply rounded-lg max-w-full h-auto my-4;
+  }
+
+  .prose-content hr {
+    @apply my-8;
+    border-color: rgb(var(--border));
+  }
+
+  /* Shimmer loading */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(79, 70, 229, 0.05) 50%,
+      rgba(0, 0, 0, 0) 100%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* Perspective for 3D transforms */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-brand-200 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-brand-300;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

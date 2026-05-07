@@ -1,0 +1,189 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Quiz Flattening Test</title>
+    <style>
+      body {
+        font-family: monospace;
+        background: #f5f5f5;
+        padding: 20px;
+      }
+      .section {
+        background: white;
+        padding: 15px;
+        margin: 10px 0;
+        border-left: 4px solid #0066cc;
+      }
+      .pass {
+        color: green;
+        font-weight: bold;
+      }
+      .fail {
+        color: red;
+        font-weight: bold;
+      }
+      .quiz-item {
+        background: #f0f0f0;
+        padding: 10px;
+        margin: 5px 0;
+        border-left: 3px solid #666;
+      }
+      pre {
+        background: #f0f0f0;
+        padding: 10px;
+        overflow-x: auto;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Quiz Flattening Test</h1>
+
+    <div id="output"></div>
+
+    <script>
+      function flattenQuizzes(quizzes) {
+        const flattened = [];
+
+        for (const quiz of quizzes) {
+          if (quiz.data && typeof quiz.data === "object") {
+            const { mini_quizzes, unit_quiz, true_false, fill_in_blanks } =
+              quiz.data;
+            let hasNested = false;
+
+            if (Array.isArray(mini_quizzes) && mini_quizzes.length > 0) {
+              mini_quizzes.forEach((mq, idx) => {
+                flattened.push({
+                  id: `${quiz.id}_mini_${idx}`,
+                  title: `${quiz.title} - ${mq.topic}`,
+                  data: { type: "mini_quiz", ...mq, parent: quiz.id },
+                });
+              });
+              hasNested = true;
+            }
+
+            if (
+              unit_quiz &&
+              typeof unit_quiz === "object" &&
+              unit_quiz.questions &&
+              unit_quiz.questions.length > 0
+            ) {
+              flattened.push({
+                id: `${quiz.id}_unit`,
+                title: `${quiz.title} - Unit Quiz`,
+                data: { type: "unit_quiz", ...unit_quiz, parent: quiz.id },
+              });
+              hasNested = true;
+            }
+
+            if (
+              true_false &&
+              typeof true_false === "object" &&
+              Array.isArray(true_false.questions) &&
+              true_false.questions.length > 0
+            ) {
+              flattened.push({
+                id: `${quiz.id}_tf`,
+                title: `${quiz.title} - True/False`,
+                data: {
+                  type: "true_false",
+                  questions: true_false.questions,
+                  parent: quiz.id,
+                },
+              });
+              hasNested = true;
+            }
+
+            if (
+              fill_in_blanks &&
+              typeof fill_in_blanks === "object" &&
+              Array.isArray(fill_in_blanks.questions) &&
+              fill_in_blanks.questions.length > 0
+            ) {
+              flattened.push({
+                id: `${quiz.id}_fib`,
+                title: `${quiz.title} - Fill in the Blanks`,
+                data: {
+                  type: "fill_in_blanks",
+                  questions: fill_in_blanks.questions,
+                  parent: quiz.id,
+                },
+              });
+              hasNested = true;
+            }
+
+            if (!hasNested) {
+              flattened.push(quiz);
+            }
+          } else {
+            flattened.push(quiz);
+          }
+        }
+
+        return flattened;
+      }
+
+      (async () => {
+        const output = document.getElementById("output");
+        const log = (text, status = "info") => {
+          const div = document.createElement("div");
+          if (status === "pass") div.className = "pass";
+          else if (status === "fail") div.className = "fail";
+          div.textContent = text;
+          output.appendChild(div);
+        };
+
+        const logSection = (title) => {
+          const div = document.createElement("div");
+          div.className = "section";
+          div.innerHTML = `<strong>${title}</strong>`;
+          output.appendChild(div);
+        };
+
+        try {
+          logSection("Step 1: Fetch quiz data from API");
+          const resp = await fetch(
+            "http://localhost:3000/api/subjects/b29817e9-6395-4f76-b361-da867efce6bc/content"
+          );
+          const data = await resp.json();
+          const quizzes = data.data.content.quiz;
+
+          log(`Original quizzes count: ${quizzes.length}`, "pass");
+          log(`First quiz title: "${quizzes[0].title}"`, "pass");
+          log(
+            `First quiz has data: ${!!quizzes[0].data}`,
+            quizzes[0].data ? "pass" : "fail"
+          );
+
+          logSection("Step 2: Flatten quizzes");
+          const flattened = flattenQuizzes(quizzes);
+          log(
+            `Flattened quizzes count: ${flattened.length}`,
+            flattened.length > 1 ? "pass" : "fail"
+          );
+
+          logSection("Step 3: Display flattened quizzes");
+          flattened.forEach((quiz, idx) => {
+            const div = document.createElement("div");
+            div.className = "quiz-item";
+            div.innerHTML = `
+                        <strong>${idx + 1}. ${quiz.title}</strong><br/>
+                        <small>ID: ${quiz.id}</small><br/>
+                        <small>Type: ${quiz.data.type || "unknown"}</small><br/>
+                        <small>Questions: ${quiz.data.questions ? quiz.data.questions.length : 0}</small>
+                    `;
+            output.appendChild(div);
+          });
+
+          logSection("Result");
+          log(
+            `✓ Successfully flattened ${flattened.length} quiz items from ${quizzes.length} quiz package(s)`,
+            "pass"
+          );
+        } catch (err) {
+          log(`ERROR: ${err.message}`, "fail");
+        }
+      })();
+    </script>
+  </body>
+</html>

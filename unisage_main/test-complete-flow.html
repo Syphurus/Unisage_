@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Complete API Flow Test</title>
+    <style>
+      body {
+        font-family: monospace;
+        background: #f5f5f5;
+        padding: 20px;
+      }
+      .section {
+        background: white;
+        padding: 15px;
+        margin: 10px 0;
+        border-left: 4px solid #0066cc;
+      }
+      .pass {
+        color: green;
+        font-weight: bold;
+      }
+      .fail {
+        color: red;
+        font-weight: bold;
+      }
+      pre {
+        background: #f0f0f0;
+        padding: 10px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Complete API Flow Verification</h1>
+
+    <div id="output"></div>
+
+    <script>
+      (async () => {
+        const output = document.getElementById("output");
+        const log = (text, status = "info") => {
+          const div = document.createElement("div");
+          if (status === "pass") div.className = "pass";
+          else if (status === "fail") div.className = "fail";
+          div.textContent = text;
+          output.appendChild(div);
+        };
+
+        const logSection = (title) => {
+          const div = document.createElement("div");
+          div.className = "section";
+          div.innerHTML = `<strong>${title}</strong>`;
+          output.appendChild(div);
+        };
+
+        const logPre = (text) => {
+          const pre = document.createElement("pre");
+          pre.textContent =
+            typeof text === "string" ? text : JSON.stringify(text, null, 2);
+          output.appendChild(pre);
+        };
+
+        try {
+          logSection("Step 1: Fetch raw API response");
+          const resp = await fetch(
+            "http://localhost:3000/api/subjects/b29817e9-6395-4f76-b361-da867efce6bc/content"
+          );
+          const data = await resp.json();
+
+          log(`Status: ${resp.status}`, resp.status === 200 ? "pass" : "fail");
+          log(
+            `Has success field: ${data.success}`,
+            data.success ? "pass" : "fail"
+          );
+          log(
+            `Response has 'data' field: ${"data" in data}`,
+            "data" in data ? "pass" : "fail"
+          );
+
+          logSection("Step 2: Verify inner data structure");
+          const innerData = data.data;
+          log(
+            `innerData.subject exists: ${!!innerData.subject}`,
+            innerData.subject ? "pass" : "fail"
+          );
+          log(
+            `innerData.content exists: ${!!innerData.content}`,
+            innerData.content ? "pass" : "fail"
+          );
+          log(
+            `innerData.content is object: ${typeof innerData.content === "object"}`,
+            typeof innerData.content === "object" ? "pass" : "fail"
+          );
+
+          logSection("Step 3: Check content categories");
+          const categories = Object.keys(innerData.content).sort();
+          log(
+            `Categories found: ${categories.join(", ")}`,
+            categories.includes("quiz") ? "pass" : "fail"
+          );
+
+          logSection("Step 4: Verify quiz array");
+          const quiz = innerData.content.quiz;
+          log(
+            `quiz is array: ${Array.isArray(quiz)}`,
+            Array.isArray(quiz) ? "pass" : "fail"
+          );
+          log(`quiz length: ${quiz.length}`, quiz.length > 0 ? "pass" : "fail");
+          log(
+            `quiz[0] has id: ${!!quiz[0]?.id}`,
+            quiz[0]?.id ? "pass" : "fail"
+          );
+          log(
+            `quiz[0] has title: ${!!quiz[0]?.title}`,
+            quiz[0]?.title ? "pass" : "fail"
+          );
+          log(`quiz[0] title value: "${quiz[0]?.title}"`, "info");
+
+          logSection("Step 5: Verify long_notes array");
+          const longNotes = innerData.content.long_notes;
+          log(
+            `long_notes is array: ${Array.isArray(longNotes)}`,
+            Array.isArray(longNotes) ? "pass" : "fail"
+          );
+          log(
+            `long_notes length: ${longNotes.length}`,
+            longNotes.length > 0 ? "pass" : "fail"
+          );
+
+          logSection("Step 6: Simulate page access pattern");
+          const category = "quiz";
+          const selectedItems = innerData.content?.[category] || [];
+          log(
+            `Accessing content['${category}']:type=${typeof selectedItems}`,
+            typeof selectedItems === "object" ? "pass" : "fail"
+          );
+          log(
+            `Selected items count: ${selectedItems.length}`,
+            selectedItems.length > 0 ? "pass" : "fail"
+          );
+          log(
+            `First item: ${JSON.stringify(selectedItems[0], null, 2)}`,
+            "info"
+          );
+
+          logSection("Step 7: Simulate rendering");
+          if (selectedItems.length === 0) {
+            log('Would show: "No quizzes available"', "fail");
+          } else {
+            log(`Would render ${selectedItems.length} quiz card(s)`, "pass");
+            selectedItems.forEach((item, i) => {
+              log(
+                `Card ${i + 1}: "${item.title || "Untitled"}" (id: ${item.id})`,
+                "pass"
+              );
+            });
+          }
+        } catch (err) {
+          log(`ERROR: ${err.message}`, "fail");
+        }
+      })();
+    </script>
+  </body>
+</html>
