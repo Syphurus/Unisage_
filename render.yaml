@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: unisage-backend
-    env: node
-    branch: main
-    rootDir: unisage_main/backend
-    buildCommand: npm ci
-    startCommand: npm start
-    plan: free
