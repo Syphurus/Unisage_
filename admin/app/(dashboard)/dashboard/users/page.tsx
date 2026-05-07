@@ -398,7 +398,9 @@ export default function UsersPage() {
       await loadSection(section);
       resetForm();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to save user");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save user"
+      );
     } finally {
       setSaving(false);
     }
@@ -517,14 +519,23 @@ export default function UsersPage() {
                   placeholder="Enter email address"
                 />
               </Field>
-              <Field label={editingId ? "Password (leave blank to keep)" : "Password"} required={!editingId}>
+              <Field
+                label={
+                  editingId ? "Password (leave blank to keep)" : "Password"
+                }
+                required={!editingId}
+              >
                 <Input
                   type="password"
                   value={form.password}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, password: e.target.value }))
                   }
-                  placeholder={editingId ? "Leave empty to keep current password" : "Enter password"}
+                  placeholder={
+                    editingId
+                      ? "Leave empty to keep current password"
+                      : "Enter password"
+                  }
                 />
               </Field>
               <Field label="Active status">
@@ -533,7 +544,10 @@ export default function UsersPage() {
                     type="checkbox"
                     checked={form.isActive}
                     onChange={(e) =>
-                      setForm((prev) => ({ ...prev, isActive: e.target.checked }))
+                      setForm((prev) => ({
+                        ...prev,
+                        isActive: e.target.checked,
+                      }))
                     }
                   />
                   Account active
@@ -560,7 +574,10 @@ export default function UsersPage() {
                       max="8"
                       value={form.semester}
                       onChange={(e) =>
-                        setForm((prev) => ({ ...prev, semester: e.target.value }))
+                        setForm((prev) => ({
+                          ...prev,
+                          semester: e.target.value,
+                        }))
                       }
                       placeholder="1"
                     />
@@ -580,7 +597,9 @@ export default function UsersPage() {
                 </>
               ) : (
                 <div className="md:col-span-2 space-y-2">
-                  <p className="text-sm font-medium text-[rgb(var(--fg))]">Permissions</p>
+                  <p className="text-sm font-medium text-[rgb(var(--fg))]">
+                    Permissions
+                  </p>
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {adminPermissionOptions.map((permission) => (
                       <label
@@ -620,7 +639,11 @@ export default function UsersPage() {
                 Reset
               </Button>
               <Button onClick={handleSubmit} disabled={saving}>
-                {saving ? "Saving..." : editingId ? "Update" : `Create ${currentMeta.singular}`}
+                {saving
+                  ? "Saving..."
+                  : editingId
+                    ? "Update"
+                    : `Create ${currentMeta.singular}`}
               </Button>
             </div>
           </CardContent>
@@ -629,7 +652,9 @@ export default function UsersPage() {
         <Card className="border-[rgb(var(--border))] shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-lg">{currentMeta.title} List</CardTitle>
+              <CardTitle className="text-lg">
+                {currentMeta.title} List
+              </CardTitle>
               <p className="mt-1 text-sm text-gray-500">
                 Search, edit, and delete records from the active section.
               </p>

@@ -229,7 +229,9 @@ function requireManagementAccess(req, requiredPermissions = []) {
   );
 
   if (!allowed) {
-    throw new ForbiddenError("You do not have permission to manage this section");
+    throw new ForbiddenError(
+      "You do not have permission to manage this section"
+    );
   }
 }
 

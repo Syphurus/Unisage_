@@ -50,7 +50,14 @@ export function canAccessPath(
   }
 
   if (pathname.startsWith("/dashboard")) {
-    return hasAnyPermission(permissions, ["dashboard.view", "subjects.manage", "content.manage", "users.manage", "team.manage", "analytics.view"]);
+    return hasAnyPermission(permissions, [
+      "dashboard.view",
+      "subjects.manage",
+      "content.manage",
+      "users.manage",
+      "team.manage",
+      "analytics.view",
+    ]);
   }
 
   return true;
