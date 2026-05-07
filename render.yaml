@@ -4,6 +4,7 @@ services:
     env: node
     branch: main
     root: unisage_main/backend
-    buildCommand: npm ci
-    startCommand: npm start
+    # Explicitly run commands from the backend folder to avoid npm ci running at repo root
+    buildCommand: cd unisage_main/backend && npm ci
+    startCommand: cd unisage_main/backend && npm start
     plan: free
