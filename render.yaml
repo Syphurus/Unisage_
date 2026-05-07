@@ -3,7 +3,7 @@ services:
     name: unisage-backend
     runtime: node
     plan: free
-    buildCommand: cd backend && npm ci --omit=dev
+    buildCommand: cd backend && npm install --omit=dev
     startCommand: cd backend && npm start
     healthCheckPath: /health
     envVars:
