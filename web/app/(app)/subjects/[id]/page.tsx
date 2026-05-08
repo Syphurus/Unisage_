@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useSubject } from "@/lib/hooks/useSubjects";
 import { useSubjectProgress } from "@/lib/hooks/useProgress";
 import { subjectsAPI } from "@/lib/api";
+import type { Content } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -19,14 +20,7 @@ import {
   FileText,
 } from "lucide-react";
 
-type Category =
-  | "long_notes"
-  | "short_notes"
-  | "flashcard"
-  | "quiz"
-  | "paper_predictor"
-  | "exam_tips"
-  | "pyqs";
+type Category = Content["type"];
 
 type UnitGroupedContent = {
   id: string;

@@ -88,7 +88,7 @@ export default function PyqsViewer({
               <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-500 mt-2">
                 <Clock className="h-3 w-3" />
                 <span>
-                  Added on {new Date(pyq.createdAt).toLocaleDateString()}
+                  Added on {pyq.createdAt ? new Date(pyq.createdAt).toLocaleDateString() : "Unknown"}
                 </span>
               </div>
             </div>
