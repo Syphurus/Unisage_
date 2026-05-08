@@ -54,7 +54,7 @@ export default function ContentManagementList({
 
   const getContentPreview = (content: Content): string => {
     if (!content.data) return "No data";
-    
+
     switch (contentType) {
       case "long_notes":
       case "short_notes":
@@ -62,7 +62,9 @@ export default function ContentManagementList({
         if ((content.data as any)?.html) {
           return "HTML Document";
         }
-        return (content.data as any)?.content?.substring(0, 100) || "No content";
+        return (
+          (content.data as any)?.content?.substring(0, 100) || "No content"
+        );
       case "flashcard":
         return `Q: ${(content.data as any)?.front || "N/A"}`;
       case "quiz":
@@ -110,8 +112,7 @@ export default function ContentManagementList({
                 {content.isPublished ? "Published" : "Draft"}
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                Created:{" "}
-                {new Date(content.createdAt).toLocaleDateString()}
+                Created: {content.createdAt ? new Date(content.createdAt).toLocaleDateString() : "Unknown"}
               </span>
             </div>
           </div>
@@ -144,11 +145,15 @@ export default function ContentManagementList({
 
       {/* Delete Confirmation Dialog */}
       {deleteConfirm && (
-        <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <AlertDialog
+          open={!!deleteConfirm}
+          onOpenChange={() => setDeleteConfirm(null)}
+        >
           <AlertDialogContent>
             <AlertDialogTitle>Delete Content?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this content? This action cannot be undone.
+              Are you sure you want to delete this content? This action cannot
+              be undone.
             </AlertDialogDescription>
             <div className="flex justify-end gap-3">
               <AlertDialogCancel>Cancel</AlertDialogCancel>
