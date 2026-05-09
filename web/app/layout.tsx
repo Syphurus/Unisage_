@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
 
@@ -9,28 +9,28 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mono",
+  weight: ["400", "500"],
+});
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  themeColor: "#06090A",
 };
 
 export const metadata: Metadata = {
   title: {
-    default: "UniSage - Study Smarter, Not Harder",
-    template: "%s | UniSage",
+    default: "UniSage — Stop revising everything equally.",
+    template: "%s · UniSage",
   },
   description:
-    "AI-powered study platform built for UPES CSE students. Complete notes, flashcards, quizzes, and progress tracking.",
-  keywords: [
-    "UPES",
-    "study",
-    "CSE",
-    "notes",
-    "flashcards",
-    "quiz",
-    "education",
-  ],
+    "Compressed revision for maximum marks. Predict what repeats, focus on what matters, walk in prepared.",
+  keywords: ["UniSage", "AI", "revision", "exam prep", "study", "CSE"],
   authors: [{ name: "UniSage" }],
 };
 
@@ -40,8 +40,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className="min-h-screen font-sans antialiased bg-[rgb(var(--bg))] text-[rgb(var(--fg))]">
+    <html
+      lang="en"
+      className={`${inter.variable} ${jetbrains.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-screen font-sans antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

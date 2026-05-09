@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo } from "react";
 import type { Content } from "@/lib/types";
-import { Card, CardContent } from "@/components/ui/card";
 import { progressAPI } from "@/lib/api";
 
 interface NotesViewerProps {
@@ -20,22 +19,11 @@ function extractHtml(content: Content) {
 
 export function NotesViewer({ content }: NotesViewerProps) {
   const html = useMemo(() => extractHtml(content), [content]);
-
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-[#0D1B2A]">{content.title || "Notes"}</h1>
-      </div>
-
-      <Card>
-        <CardContent className="p-6">
-          <article
-            className="prose prose-slate max-w-none prose-headings:text-[#0D1B2A] prose-p:text-[#333D52]"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        </CardContent>
-      </Card>
-    </div>
+    <article
+      className="prose-notes"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }
 
@@ -45,10 +33,9 @@ export function NotesViewerWithTracking({ content }: NotesViewerProps) {
       try {
         await progressAPI.update({ contentId: content.id, timeSpent: 15 });
       } catch (_) {
-        // ignore tracking failures to keep reading flow uninterrupted
+        // ignore tracking failures
       }
     }, 15000);
-
     return () => clearInterval(interval);
   }, [content.id]);
 

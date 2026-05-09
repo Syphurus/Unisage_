@@ -2,198 +2,243 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { authAPI, metaAPI } from "@/lib/api";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { toast } from "sonner";
-import { getSemestersForYear } from "@/lib/constants";
+import { ArrowRight, Check, ChevronLeft, Sun, Moon } from "lucide-react";
+import { Pill, PrimaryButton } from "@/components/unisage/primitives";
+import { useTheme } from "@/lib/hooks/useTheme";
+import { cn } from "@/lib/utils";
+
+interface College {
+  id: string;
+  name: string;
+  code: string;
+}
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
-  const [collegeCode, setCollegeCode] = useState(user?.collegeCode || "");
-  const [branchCode, setBranchCode] = useState(user?.branchCode || "");
-  const [year, setYear] = useState<number>(user?.year || 1);
-  const [semester, setSemester] = useState<number>(user?.semester || 1);
-  const [enrollmentNumber, setEnrollmentNumber] = useState(
-    user?.enrollmentNumber || ""
+  const [step, setStep] = useState<1 | 2>(1);
+
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [collegeCode, setCollegeCode] = useState<string>(
+    user?.collegeCode || "",
+  );
+  const [branchCode, setBranchCode] = useState<string>(user?.branchCode || "");
+  const [semester, setSemester] = useState<number>(user?.semester || 0);
+  const [enrollment, setEnrollment] = useState<string>(
+    user?.enrollmentNumber || "",
   );
   const [loading, setLoading] = useState(false);
 
-  const [colleges, setColleges] = useState<
-    Array<{ id: string; name: string; code: string }>
-  >([]);
-  const [branches, setBranches] = useState<
-    Array<{ id: string; name: string; code: string }>
-  >([]);
-  const semesterOptions = getSemestersForYear(year);
-
   useEffect(() => {
-    async function loadColleges() {
-      try {
-        const res = await metaAPI.getColleges();
-        setColleges(res.data || []);
-      } catch {
-        setColleges([]);
-      }
-    }
-    loadColleges();
+    metaAPI
+      .getColleges()
+      .then((res: any) => setColleges(res?.data ?? res ?? []))
+      .catch(() => setColleges([]));
   }, []);
 
   useEffect(() => {
-    if (
-      semesterOptions.length > 0 &&
-      !semesterOptions.some((option) => option.value === semester)
-    ) {
-      setSemester(semesterOptions[0].value);
-    }
-  }, [semester, semesterOptions]);
-
-  useEffect(() => {
-    async function loadBranches() {
-      if (!collegeCode) {
-        setBranches([]);
-        return;
-      }
-      try {
-        const res = await metaAPI.getBranches(collegeCode);
-        setBranches(res.data || []);
-      } catch {
-        setBranches([]);
-      }
-    }
-    loadBranches();
+    if (!collegeCode) return;
+    metaAPI
+      .getBranches(collegeCode)
+      .then((res: any) => setBranches(res?.data ?? res ?? []))
+      .catch(() => setBranches([]));
   }, [collegeCode]);
 
-  async function onSave() {
-    if (!collegeCode || !branchCode || !year || !semester) {
-      toast.error("Please fill college, branch, year and semester");
-      return;
-    }
+  const yearFromSemester = (s: number) => Math.ceil(s / 2);
 
+  const canContinue =
+    step === 1 ? !!collegeCode : !!branchCode && !!semester && !!enrollment;
+
+  const onContinue = async () => {
+    if (!canContinue) return;
+    if (step === 1) return setStep(2);
     setLoading(true);
     try {
       await authAPI.updateProfile({
         collegeCode,
         branchCode,
-        year,
+        year: yearFromSemester(semester),
         semester,
-        enrollmentNumber,
+        enrollmentNumber: enrollment,
       });
       await refreshUser();
-      toast.success("Profile updated");
+      toast.success("Profile complete.");
       router.push("/dashboard");
-    } catch (err: any) {
-      toast.error(err?.error?.message || "Failed to update profile");
+    } catch (err) {
+      const e = err as { message?: string };
+      toast.error(e.message || "Failed to save");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <Card>
-        <CardHeader>
-          <CardTitle>Complete your profile</CardTitle>
-          <CardDescription>
-            Select your college details to unlock the correct subjects for your
-            semester.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>College</Label>
-              <select
-                className="h-10 w-full rounded border border-gray-200 px-3"
-                value={collegeCode}
-                onChange={(e) => {
-                  setCollegeCode(e.target.value);
-                  setBranchCode("");
-                }}
-              >
-                <option value="">Select college</option>
-                {colleges.map((c) => (
-                  <option key={c.id} value={c.code}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Branch</Label>
-              <select
-                className="h-10 w-full rounded border border-gray-200 px-3"
-                value={branchCode}
-                onChange={(e) => setBranchCode(e.target.value)}
-              >
-                <option value="">Select branch</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.code}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Year</Label>
-              <select
-                className="h-10 w-full rounded border border-gray-200 px-3"
-                value={year}
-                onChange={(e) => setYear(parseInt(e.target.value, 10))}
-              >
-                {[1, 2, 3, 4].map((y) => (
-                  <option key={y} value={y}>
-                    Year {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Semester</Label>
-              <select
-                className="h-10 w-full rounded border border-gray-200 px-3"
-                value={semester}
-                onChange={(e) => setSemester(parseInt(e.target.value, 10))}
-              >
-                {semesterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    Semester {option.value}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Enrollment Number</Label>
-            <Input
-              value={enrollmentNumber || ""}
-              onChange={(e) => setEnrollmentNumber(e.target.value)}
-              placeholder="Enter enrollment number"
+    <div className="min-h-screen pb-32">
+      <header className="flex items-center justify-between px-5 pt-5">
+        <button
+          onClick={() => (step === 1 ? router.push("/") : setStep(1))}
+          aria-label="Back"
+          className="-ml-2 grid h-9 w-9 place-items-center rounded-full text-[rgb(var(--fg))] hover:bg-white/[0.05]"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div className="flex flex-1 items-center justify-center gap-2 px-4">
+          {[1, 2].map((n) => (
+            <div
+              key={n}
+              className={cn(
+                "h-[2px] flex-1 rounded-full",
+                n <= step ? "bg-mint-400" : "bg-white/10",
+              )}
             />
-          </div>
+          ))}
+        </div>
+        <button
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+          className="grid h-9 w-9 place-items-center rounded-full text-chalk-300 hover:bg-white/[0.05]"
+        >
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </button>
+      </header>
 
-          <div className="flex justify-end">
-            <Button onClick={onSave} disabled={loading}>
-              {loading ? "Saving..." : "Save and Continue"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="px-5 pt-7">
+        <Pill variant="mint" className="mb-4">
+          Step {step} of 2
+        </Pill>
+
+        {step === 1 && (
+          <>
+            <h1 className="text-[36px] font-bold leading-[1.05] tracking-[-0.01em] text-[rgb(var(--fg))]">
+              Where are you
+              <br />
+              studying?
+            </h1>
+            <div className="mt-7 space-y-2.5">
+              {colleges.map((c) => {
+                const active = collegeCode === c.code;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => setCollegeCode(c.code)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-[12px] border px-4 py-3.5 text-left transition-colors",
+                      active
+                        ? "border-mint-500 bg-mint-500/10"
+                        : "border-white/[0.08] bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--bg-subtle))]",
+                    )}
+                  >
+                    <span className="text-[14px] font-medium text-[rgb(var(--fg))]">
+                      {c.name}
+                    </span>
+                    {active && <Check className="h-4 w-4 text-mint-400" />}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <h1 className="text-[36px] font-bold leading-[1.05] tracking-[-0.01em] text-[rgb(var(--fg))]">
+              Last bit.
+            </h1>
+
+            <div className="mt-7">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+                Branch
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {branches.map((b) => {
+                  const active = branchCode === b.code;
+                  return (
+                    <button
+                      key={b.id}
+                      onClick={() => setBranchCode(b.code)}
+                      className={cn(
+                        "rounded-pill border px-4 py-1.5 text-[12px] font-medium",
+                        active
+                          ? "border-mint-500 bg-mint-500 text-ink-950"
+                          : "border-white/[0.1] text-chalk-300",
+                      )}
+                    >
+                      {b.code}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <p className="mb-3 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+                Semester
+              </p>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => {
+                  const active = semester === s;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => setSemester(s)}
+                      className={cn(
+                        "rounded-[12px] border py-2.5 text-[14px] font-semibold",
+                        active
+                          ? "border-mint-500 bg-mint-500 text-ink-950"
+                          : "border-white/[0.1] text-chalk-300",
+                      )}
+                    >
+                      Sem {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <label className="mb-2 block text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+                Enrollment number
+              </label>
+              <input
+                value={enrollment}
+                onChange={(e) => setEnrollment(e.target.value)}
+                placeholder="e.g. 21CS3001"
+                className="w-full rounded-[12px] border border-white/[0.08] bg-[rgb(var(--bg-elev))] px-4 py-3.5 text-[15px] text-[rgb(var(--fg))] placeholder:text-chalk-500 focus:border-mint-500 focus:outline-none"
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="sticky-cta">
+        <PrimaryButton
+          type="button"
+          disabled={!canContinue || loading}
+          onClick={onContinue}
+        >
+          {step === 2
+            ? loading
+              ? "Saving..."
+              : "Enter mission control"
+            : "Continue"}{" "}
+          <ArrowRight className="h-4 w-4" />
+        </PrimaryButton>
+      </div>
     </div>
   );
 }

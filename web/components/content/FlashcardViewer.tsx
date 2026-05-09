@@ -1,283 +1,260 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Bookmark, Pencil, Smile, Meh, Frown, Trophy } from "lucide-react";
-import confetti from "canvas-confetti";
+import { useRouter } from "next/navigation";
+import {
+  ChevronLeft,
+  Check,
+  Trophy,
+  RotateCcw,
+} from "lucide-react";
+import {
+  Pill,
+  PrimaryButton,
+} from "@/components/unisage/primitives";
 import type { Content } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface FlashcardViewerProps {
   flashcards: Content[];
   subjectId?: string;
+  backHref?: string;
+  title?: string;
+  subjectCode?: string;
 }
 
-export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
+export function FlashcardViewer({
+  flashcards,
+  backHref,
+  title,
+  subjectCode,
+}: FlashcardViewerProps) {
+  const router = useRouter();
   const [cards, setCards] = useState(flashcards);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [knownCards, setKnownCards] = useState<Set<string>>(new Set());
-  const [reviewCards, setReviewCards] = useState<Set<string>>(new Set());
-  const [isComplete, setIsComplete] = useState(false);
+  const [idx, setIdx] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [confident, setConfident] = useState<Set<string>>(new Set());
+  const [shaky, setShaky] = useState<Set<string>>(new Set());
+  const [forgot, setForgot] = useState<Set<string>>(new Set());
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     if (flashcards.length > 0) {
       setCards(flashcards);
-      setCurrentIndex(0);
-      setIsFlipped(false);
-      setKnownCards(new Set());
-      setReviewCards(new Set());
-      setIsComplete(false);
+      setIdx(0);
+      setRevealed(false);
+      setConfident(new Set());
+      setShaky(new Set());
+      setForgot(new Set());
+      setDone(false);
     }
-  }, [flashcards.length]);
+  }, [flashcards]);
 
-  const current = cards[currentIndex];
-  const cardData = current?.data as { front: string; back: string };
-  const progress = ((currentIndex + 1) / Math.max(cards.length, 1)) * 100;
+  const card = cards[idx];
 
-  const flip = useCallback(() => {
-    setIsFlipped((prev) => !prev);
-  }, []);
-
-  const advance = useCallback(() => {
-    setIsFlipped(false);
-    if (currentIndex >= cards.length - 1) {
-      setIsComplete(true);
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ["#0D1B2A", "#00B4A6", "#22C55E", "#F59E0B"],
-      });
+  const goNext = useCallback(() => {
+    if (idx >= cards.length - 1) {
+      setDone(true);
     } else {
-      setTimeout(() => setCurrentIndex((prev) => prev + 1), 120);
+      setIdx((i) => i + 1);
+      setRevealed(false);
     }
-  }, [currentIndex, cards.length]);
+  }, [idx, cards.length]);
 
-  const markEasy = () => {
-    if (!current) return;
-    setKnownCards((prev) => new Set(prev).add(current.id));
-    advance();
+  const rate = (rating: "solid" | "shaky" | "forgot") => {
+    if (!card) return;
+    if (rating === "solid") setConfident((s) => new Set(s).add(card.id));
+    if (rating === "shaky") setShaky((s) => new Set(s).add(card.id));
+    if (rating === "forgot") setForgot((s) => new Set(s).add(card.id));
+    goNext();
   };
 
-  const markMedium = () => {
-    if (!current) return;
-    setReviewCards((prev) => new Set(prev).add(current.id));
-    advance();
+  const reset = () => {
+    setIdx(0);
+    setRevealed(false);
+    setConfident(new Set());
+    setShaky(new Set());
+    setForgot(new Set());
+    setDone(false);
   };
 
-  const markHard = () => {
-    if (!current) return;
-    setReviewCards((prev) => new Set(prev).add(current.id));
-    advance();
+  const onBack = () => {
+    if (backHref) router.push(backHref);
+    else router.back();
   };
 
-  const restart = () => {
-    setCurrentIndex(0);
-    setIsFlipped(false);
-    setKnownCards(new Set());
-    setReviewCards(new Set());
-    setIsComplete(false);
-  };
-
-  if (isComplete) {
+  if (cards.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto min-h-[520px] flex flex-col items-center justify-center text-center p-6">
-        <Trophy className="h-14 w-14 text-[#F59E0B] mb-3" />
-        <h2 className="text-[32px] font-bold text-[#0D1B2A]">
-          Session Complete
-        </h2>
-        <p className="text-[13px] text-[#707891] mt-1">
-          You reviewed {cards.length} flashcards.
-        </p>
-        <div className="grid grid-cols-3 gap-4 mt-6 w-full max-w-lg">
-          <div className="unisage-card p-3">
-            <p className="text-[10px] uppercase font-bold text-[#707891]">
-              Easy
-            </p>
-            <p className="text-[20px] font-bold text-[#22C55E]">
-              {knownCards.size}
-            </p>
-          </div>
-          <div className="unisage-card p-3">
-            <p className="text-[10px] uppercase font-bold text-[#707891]">
-              Review
-            </p>
-            <p className="text-[20px] font-bold text-[#F59E0B]">
-              {reviewCards.size}
-            </p>
-          </div>
-          <div className="unisage-card p-3">
-            <p className="text-[10px] uppercase font-bold text-[#707891]">
-              Mastery
-            </p>
-            <p className="text-[20px] font-bold text-[#0D1B2A]">
-              {Math.round((knownCards.size / Math.max(cards.length, 1)) * 100)}%
-            </p>
-          </div>
-        </div>
-        <Button className="mt-6" onClick={restart}>
-          Study Again
-        </Button>
+      <div className="px-5 py-12 text-center text-[14px] text-chalk-400">
+        No cards available.
       </div>
     );
   }
 
-  return (
-    <div className="w-full max-w-6xl mx-auto space-y-4">
-      <div>
-        <p className="text-[12px] text-[#707891] font-medium">
-          ← Back to Quizzes
-        </p>
-        <h1 className="text-[32px] font-bold text-[#0D1B2A] leading-tight mt-1">
-          Computer Networks
+  if (done) {
+    const score = Math.round((confident.size / cards.length) * 100);
+    return (
+      <div className="min-h-screen px-5 pt-12 pb-32 text-center">
+        <Trophy className="mx-auto h-12 w-12 text-mint-400" />
+        <h1 className="mt-6 text-[28px] font-bold text-[rgb(var(--fg))]">
+          Cycle complete
         </h1>
-        <p className="text-[13px] text-[#707891]">
-          Unit 4: The Transport Layer • Session active
+        <p className="mt-2 text-[14px] text-chalk-300">
+          {confident.size} confident · {shaky.size} shaky · {forgot.size} forgot
+        </p>
+        <div className="mt-8 grid grid-cols-3 gap-3">
+          <Stat tone="mint" value={confident.size} label="Solid" />
+          <Stat tone="ember" value={shaky.size} label="Shaky" />
+          <Stat tone="flame" value={forgot.size} label="Forgot" />
+        </div>
+        <div className="mt-8 mx-auto max-w-sm space-y-3">
+          <PrimaryButton onClick={reset}>
+            <RotateCcw className="h-4 w-4" /> Run cycle again
+          </PrimaryButton>
+          <button onClick={onBack} className="btn-outline">
+            Back to subject
+          </button>
+        </div>
+        <p className="mt-4 text-[11px] uppercase tracking-cap text-chalk-500">
+          Recall · {score}%
         </p>
       </div>
+    );
+  }
 
-      <div>
-        <div className="flex items-center justify-between text-[10px] text-[#707891] mb-2 font-bold uppercase tracking-[0.08em]">
-          <span>Progress</span>
-          <span>
-            CARD {currentIndex + 1} OF {cards.length}
-          </span>
-        </div>
-        <Progress value={progress} />
-      </div>
+  const data = card.data as any;
+  const front = data?.front || "";
+  const back = data?.back || "";
+  const decay = Math.min(95, 30 + idx * 4);
 
-      <div
-        className="w-full perspective-1000 cursor-pointer"
-        onClick={flip}
-        role="button"
-        tabIndex={0}
-      >
-        <motion.div
-          animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ duration: 0.45 }}
-          style={{ transformStyle: "preserve-3d" }}
-          className="relative w-full h-[360px]"
+  return (
+    <div className="min-h-screen pb-32">
+      {/* Header */}
+      <header className="flex items-center justify-between px-5 pt-5">
+        <button
+          onClick={onBack}
+          aria-label="Back"
+          className="-ml-2 grid h-9 w-9 place-items-center rounded-full text-[rgb(var(--fg))] hover:bg-white/[0.05]"
         >
-          <div
-            className="absolute inset-0 rounded-2xl bg-white border border-[#EBEBF5] shadow-[0_1px_4px_rgba(0,0,0,0.07)] p-6 flex flex-col backface-hidden"
-            style={{ backfaceVisibility: "hidden" }}
-          >
-            <div className="inline-flex w-fit rounded-full bg-[#FFF3E2] text-[#8B5E00] text-[10px] font-bold uppercase px-2 py-1">
-              Question
-            </div>
-            <p className="text-[34px] text-[#EEF0F7] font-bold absolute right-5 bottom-4">
-              #012
-            </p>
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-[36px] text-center font-bold text-[#0D1B2A] leading-tight max-w-4xl">
-                {cardData?.front}
-              </p>
-            </div>
-            <div className="flex items-center justify-center gap-3">
-              <button className="h-10 w-10 rounded-full border border-[#EBEBF5] inline-flex items-center justify-center">
-                <Bookmark className="h-4 w-4 text-[#707891]" />
-              </button>
-              <Button className="px-6">Flip Card</Button>
-            </div>
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-3">
+          <span className="text-[12px] font-semibold tabular-nums text-[rgb(var(--fg))]">
+            {idx + 1} / {cards.length}
+          </span>
+          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full bg-mint-400 transition-all"
+              style={{ width: `${((idx + 1) / cards.length) * 100}%` }}
+            />
           </div>
+        </div>
+      </header>
 
-          <div
-            className="absolute inset-0 rounded-2xl bg-[#0D1B2A] text-white border border-[#EBEBF5] shadow-[0_1px_4px_rgba(0,0,0,0.07)] p-6 flex flex-col backface-hidden"
-            style={{
-              backfaceVisibility: "hidden",
-              transform: "rotateY(180deg)",
-            }}
-          >
-            <div className="inline-flex w-fit rounded-full bg-white/10 text-white text-[10px] font-bold uppercase px-2 py-1">
-              Answer
-            </div>
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-[30px] text-center font-semibold leading-tight max-w-4xl">
-                {cardData?.back}
-              </p>
-            </div>
-            <div className="text-center text-[12px] text-white/70">
-              Tap card to flip back
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      <div className="text-center">
-        <p className="text-[10px] uppercase font-bold tracking-[0.08em] text-[#707891] mb-3">
-          How difficult was this for you?
+      <div className="px-5 pt-2">
+        <p className="caption mb-3">
+          {subjectCode ? `${subjectCode} · ` : ""}CYCLE 1 OF 5
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <button
-            onClick={markEasy}
-            className="rounded-xl border border-[#EBEBF5] bg-white p-3 text-left hover:bg-[#F9F9FF]"
-          >
-            <div className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#0D1B2A]">
-              <Smile className="h-4 w-4 text-[#22C55E]" /> Easy
-            </div>
-            <p className="text-[11px] text-[#707891] mt-1">
-              I knew this instantly
-            </p>
-          </button>
-          <button
-            onClick={markMedium}
-            className="rounded-xl border border-[#EBEBF5] bg-white p-3 text-left hover:bg-[#F9F9FF]"
-          >
-            <div className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#0D1B2A]">
-              <Meh className="h-4 w-4 text-[#F59E0B]" /> Medium
-            </div>
-            <p className="text-[11px] text-[#707891] mt-1">
-              Took a moment to recall
-            </p>
-          </button>
-          <button
-            onClick={markHard}
-            className="rounded-xl border border-[#EBEBF5] bg-white p-3 text-left hover:bg-[#F9F9FF]"
-          >
-            <div className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#0D1B2A]">
-              <Frown className="h-4 w-4 text-[#EF4444]" /> Hard
-            </div>
-            <p className="text-[11px] text-[#707891] mt-1">
-              Need to review this more
-            </p>
-          </button>
-        </div>
+        <h1 className="text-[28px] font-bold leading-tight tracking-[-0.01em] text-[rgb(var(--fg))]">
+          Recall Cycles
+        </h1>
       </div>
 
-      <div className="rounded-2xl bg-[#0D1B2A] text-white p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div>
-          <p className="text-[10px] uppercase text-white/60 font-bold">
-            Active Time
-          </p>
-          <p className="text-[14px] font-semibold">12m 45s</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase text-white/60 font-bold">
-            Mastery
-          </p>
-          <p className="text-[14px] font-semibold">
-            {Math.max(65, knownCards.size * 10)}%
-          </p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase text-white/60 font-bold">
-            Streak
-          </p>
-          <p className="text-[14px] font-semibold">{knownCards.size} Cards</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase text-white/60 font-bold">
-            Focus Mode
-          </p>
-          <p className="text-[14px] font-semibold">High</p>
-        </div>
-      </div>
+      <div className="px-5 mt-6">
+        <article className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-6 min-h-[320px] flex flex-col">
+          <div className="flex items-center justify-between gap-2">
+            <p className="caption">
+              CARD {String(idx + 1).padStart(2, "0")} · {title || "Topic"}
+            </p>
+            <Pill variant="mint">HIGH RECALL</Pill>
+          </div>
 
-      <button className="fixed right-8 bottom-8 h-12 w-12 rounded-full bg-[#00B4A6] text-white inline-flex items-center justify-center shadow-[0_1px_4px_rgba(0,0,0,0.16)]">
-        <Pencil className="h-4 w-4" />
-      </button>
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
+            <p className="caption">{revealed ? "ANSWER" : "QUESTION"}</p>
+            <p
+              className={cn(
+                "leading-snug",
+                revealed
+                  ? "text-[18px] text-[rgb(var(--fg))]"
+                  : "text-[22px] font-semibold text-[rgb(var(--fg))]",
+              )}
+            >
+              {revealed ? back : front}
+            </p>
+          </div>
+
+          <div className="mt-2 flex items-center justify-between gap-3 pt-4 border-t border-white/[0.05]">
+            <p className="text-[10px] uppercase tracking-cap text-chalk-500">
+              Decay · {decay}%
+            </p>
+          </div>
+        </article>
+
+        {!revealed ? (
+          <div className="mt-5">
+            <PrimaryButton onClick={() => setRevealed(true)}>
+              Reveal answer
+            </PrimaryButton>
+          </div>
+        ) : (
+          <div className="mt-5">
+            <p className="caption mb-3">Confidence</p>
+            <div className="grid grid-cols-3 gap-2.5">
+              <button
+                onClick={() => rate("forgot")}
+                className="rounded-pill border border-flame-500/30 bg-flame-500/10 px-3 py-2.5 text-[13px] font-semibold text-flame-500"
+              >
+                Forgot
+              </button>
+              <button
+                onClick={() => rate("shaky")}
+                className="rounded-pill border border-ember-400/30 bg-ember-400/10 px-3 py-2.5 text-[13px] font-semibold text-ember-400"
+              >
+                Shaky
+              </button>
+              <button
+                onClick={() => rate("solid")}
+                className="rounded-pill border border-mint-500/30 bg-mint-500/10 px-3 py-2.5 text-[13px] font-semibold text-mint-400"
+              >
+                <span className="inline-flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Solid
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+function Stat({
+  value,
+  label,
+  tone,
+}: {
+  value: number;
+  label: string;
+  tone: "mint" | "ember" | "flame";
+}) {
+  return (
+    <div className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] py-4">
+      <p
+        className={cn(
+          "text-[24px] font-bold tabular-nums",
+          tone === "mint" && "text-mint",
+          tone === "ember" && "text-ember-400",
+          tone === "flame" && "text-flame-500",
+        )}
+      >
+        {value}
+      </p>
+      <p className="mt-1 text-[10px] uppercase tracking-cap text-chalk-500">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+// Default export for compatibility
+export default FlashcardViewer;
