@@ -152,7 +152,7 @@ export default function SignupPage() {
         </button>
       </header>
 
-      <div className="px-5 pt-7">
+      <div className="px-5 pt-7 md:px-8">
         <Pill variant="mint" className="mb-4">
           Step {step} of 3
         </Pill>

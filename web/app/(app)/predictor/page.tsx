@@ -70,8 +70,8 @@ export default function PredictorPage() {
       />
 
       {/* Subject tabs (underline style) */}
-      <div className="px-5">
-        <div className="flex gap-5 overflow-x-auto scrollbar-none border-b border-white/[0.06]">
+      <div className="px-5 md:px-8 lg:px-12">
+        <div className="flex gap-5 lg:gap-8 overflow-x-auto scrollbar-none border-b border-white/[0.06]">
           {subjects.map((s) => {
             const active = s.id === activeId;
             return (
@@ -93,11 +93,11 @@ export default function PredictorPage() {
       </div>
 
       {!active ? (
-        <p className="px-5 pt-8 text-[13px] text-chalk-400">
+        <p className="px-5 pt-8 text-[13px] text-chalk-400 md:px-8 lg:px-12">
           Loading subjects…
         </p>
       ) : (
-        <div className="px-5 pt-6">
+        <div className="px-5 pt-6 md:px-8 lg:px-12">
           <p className="caption mb-1">
             {active.code}-{active.semester}01 / 2017–2024
           </p>
@@ -147,7 +147,7 @@ export default function PredictorPage() {
           </ul>
 
           <SectionHeader className="mt-8" title="What's inside" />
-          <div className="mt-3 space-y-2.5">
+          <div className="mt-3 space-y-2.5 lg:grid lg:grid-cols-3 lg:gap-3 lg:space-y-0">
             <AnnotationBlock label="Common trap" tone="flame">
               Past-year traps that cost students 4+ marks.
             </AnnotationBlock>
@@ -159,7 +159,7 @@ export default function PredictorPage() {
             </AnnotationBlock>
           </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="mt-6 grid grid-cols-2 gap-3 lg:max-w-md">
             {list[0] && (
               <Link href={`/content/${list[0].id}`} className="contents">
                 <PrimaryButton type="button">

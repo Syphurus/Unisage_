@@ -19,7 +19,10 @@ import {
 import { ReactNode } from "react";
 
 // ─────────────────────────────────────────────────────────
-// PhoneFrame — narrow centered column, full-bleed on mobile
+// PhoneFrame — fluid container that scales from mobile to desktop
+//   - mobile (<sm)   : full-bleed
+//   - sm/md          : centered 480-720px column
+//   - lg/xl          : centered 1080-1280px wide canvas
 // ─────────────────────────────────────────────────────────
 export function PhoneFrame({
   children,
@@ -31,7 +34,8 @@ export function PhoneFrame({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-[440px] min-h-screen bg-[rgb(var(--bg))] relative",
+        "mx-auto w-full min-h-screen bg-[rgb(var(--bg))] relative",
+        "max-w-[480px] md:max-w-[720px] lg:max-w-[1080px] xl:max-w-[1280px]",
         className,
       )}
     >
@@ -77,7 +81,7 @@ export function TopHeader({
   return (
     <header
       className={cn(
-        "px-5 pt-4 pb-3",
+        "px-5 pt-4 pb-3 md:px-8 md:pt-6 lg:px-12",
         // Spacer pushes safe-area; status bar of device handles its own
         className,
       )}
@@ -137,12 +141,12 @@ export function TopHeader({
       {(caption || title) && (
         <div className="mt-3">
           {caption && (
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+            <div className="mb-2 text-[10px] md:text-[11px] font-semibold uppercase tracking-cap text-chalk-500">
               {caption}
             </div>
           )}
           {title && (
-            <h1 className="text-[28px] font-bold leading-tight tracking-[-0.01em] text-[rgb(var(--fg))]">
+            <h1 className="text-[28px] md:text-[36px] lg:text-[44px] font-bold leading-tight tracking-[-0.01em] text-[rgb(var(--fg))]">
               {title}
             </h1>
           )}
@@ -167,7 +171,7 @@ export function BottomTabBar() {
   const pathname = usePathname() || "";
   return (
     <nav
-      className="fixed bottom-0 left-1/2 z-20 w-full max-w-[440px] -translate-x-1/2 border-t border-white/[0.05] bg-[rgb(var(--bg))]/95 px-2 backdrop-blur-md"
+      className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] md:max-w-[720px] lg:max-w-[1080px] xl:max-w-[1280px] -translate-x-1/2 border-t border-white/[0.05] bg-[rgb(var(--bg))]/95 px-2 backdrop-blur-md"
       style={{ paddingBottom: "calc(8px + env(safe-area-inset-bottom))" }}
     >
       <ul className="grid grid-cols-5">
@@ -178,7 +182,7 @@ export function BottomTabBar() {
               <Link
                 href={href}
                 className={cn(
-                  "flex h-[60px] flex-col items-center justify-center gap-1 transition-colors",
+                  "flex h-[60px] md:h-[68px] flex-col md:flex-row items-center justify-center gap-1 md:gap-2 transition-colors",
                   isActive
                     ? "text-mint-400"
                     : "text-chalk-400 hover:text-[rgb(var(--fg))]",
@@ -186,13 +190,13 @@ export function BottomTabBar() {
               >
                 <Icon
                   className={cn(
-                    "h-[20px] w-[20px]",
+                    "h-[20px] w-[20px] md:h-[18px] md:w-[18px]",
                     isActive ? "stroke-[2px]" : "stroke-[1.6px]",
                   )}
                 />
                 <span
                   className={cn(
-                    "text-[9px] font-semibold uppercase tracking-[0.12em]",
+                    "text-[9px] md:text-[12px] font-semibold uppercase tracking-[0.12em]",
                     isActive ? "text-mint-400" : "text-chalk-500",
                   )}
                 >

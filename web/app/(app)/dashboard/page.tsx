@@ -88,8 +88,8 @@ export default function DashboardPage() {
         showTheme
       />
 
-      <section className="px-5 -mt-2">
-        <h1 className="text-[34px] font-bold leading-[1.05] tracking-[-0.01em] text-[rgb(var(--fg))]">
+      <section className="px-5 -mt-2 md:px-8 lg:px-12">
+        <h1 className="text-[34px] md:text-[44px] lg:text-[52px] font-bold leading-[1.05] tracking-[-0.01em] text-[rgb(var(--fg))]">
           {firstName} —
           <br />
           <span className="text-mint">5 days</span>,{" "}
@@ -97,11 +97,13 @@ export default function DashboardPage() {
         </h1>
       </section>
 
-      {/* Prep modes */}
-      <section className="px-5 pt-7">
-        <MetaCaption className="mb-3">Prep modes · tap to engage</MetaCaption>
+      {/* Prep modes — horizontal scroll mobile, wrap on lg+ */}
+      <section className="pt-7 md:pt-10 lg:pt-12">
+        <div className="px-5 md:px-8 lg:px-12">
+          <MetaCaption className="mb-3">Prep modes · tap to engage</MetaCaption>
+        </div>
         <div
-          className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1"
+          className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1 px-5 md:px-8 lg:px-12 lg:flex-wrap lg:overflow-visible"
           style={{ scrollbarWidth: "none" }}
         >
           {PREP_MODES.map((m) => {
@@ -133,7 +135,7 @@ export default function DashboardPage() {
       </section>
 
       {/* AI focus card */}
-      <section className="px-5 pt-6">
+      <section className="px-5 pt-6 md:px-8 lg:px-12">
         <HighlightCard
           caption={
             <>
@@ -161,12 +163,12 @@ export default function DashboardPage() {
       </section>
 
       {/* High probability ranked */}
-      <section className="px-5 pt-7">
+      <section className="px-5 pt-7 md:px-8 lg:px-12">
         <SectionHeader
           title="High probability"
           meta={`${topThree.length} of ${totalSubjects} · ranked`}
         />
-        <div className="mt-2 divide-y divide-white/[0.04]">
+        <div className="mt-2 divide-y divide-white/[0.04] lg:grid lg:grid-cols-2 lg:gap-x-8 lg:divide-y-0 lg:[&>*]:border-b lg:[&>*]:border-white/[0.04]">
           {subjLoading && totalSubjects === 0 ? (
             <p className="py-6 text-center text-[13px] text-chalk-500">
               Loading…
@@ -201,7 +203,7 @@ export default function DashboardPage() {
 
       {/* Continue revision */}
       {continueRevision && (
-        <section className="px-5 pt-7">
+        <section className="px-5 pt-7 md:px-8 lg:px-12">
           <SectionHeader
             title="Continue revision"
             meta={`${continueRevision.pct}%`}
@@ -232,9 +234,9 @@ export default function DashboardPage() {
       )}
 
       {/* Quick tools */}
-      <section className="px-5 pt-7">
+      <section className="px-5 pt-7 md:px-8 lg:px-12">
         <SectionHeader title="Quick tools" />
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
           <Link
             href="/learn"
             className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4"
@@ -294,15 +296,15 @@ export default function DashboardPage() {
 
       {/* Weak zone */}
       {ranked.filter((r) => r.pct < 50).length > 0 && (
-        <section className="px-5 pt-7">
+        <section className="px-5 pt-7 md:px-8 lg:px-12">
           <SectionHeader
             title="Weak zone"
             meta={`${ranked.filter((r) => r.pct < 50).length} alerts`}
           />
-          <div className="mt-3 space-y-2.5">
+          <div className="mt-3 space-y-2.5 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
             {ranked
               .filter((r) => r.pct < 50)
-              .slice(0, 3)
+              .slice(0, 4)
               .map((r) => (
                 <AlertCard
                   key={r.subject.id}
@@ -316,9 +318,9 @@ export default function DashboardPage() {
       )}
 
       {/* Today */}
-      <section className="px-5 pt-7 pb-4">
+      <section className="px-5 pt-7 pb-4 md:px-8 lg:px-12">
         <SectionHeader title="Today" />
-        <div className="mt-3 grid grid-cols-4 gap-2">
+        <div className="mt-3 grid grid-cols-4 gap-2 lg:gap-4">
           <StatTile
             value={`${stats?.currentStreak ?? 0}d`}
             label="Streak"

@@ -84,7 +84,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen pb-32">
+    <div className="min-h-screen pb-32 mx-auto w-full lg:max-w-[640px]">
       <header className="flex items-center justify-between px-5 pt-5">
         <button
           onClick={() => (step === 1 ? router.push("/") : setStep(1))}
@@ -117,7 +117,7 @@ export default function OnboardingPage() {
         </button>
       </header>
 
-      <div className="px-5 pt-7">
+      <div className="px-5 pt-7 md:px-8">
         <Pill variant="mint" className="mb-4">
           Step {step} of 2
         </Pill>

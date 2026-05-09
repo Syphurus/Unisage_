@@ -113,7 +113,7 @@ export default function PyqsViewer({ content, isLoading }: PyqsViewerProps) {
               title="Question clusters"
               meta="ranked by frequency"
             />
-            <ul className="mt-3 space-y-3">
+            <ul className="mt-3 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
               {clusters
                 .sort((a, b) => b.items.length - a.items.length)
                 .map((cluster, i) => (
@@ -159,7 +159,7 @@ export default function PyqsViewer({ content, isLoading }: PyqsViewerProps) {
         ) : (
           <>
             <SectionHeader title="By year" meta={`${byYear.length} papers`} />
-            <ul className="mt-3 space-y-3">
+            <ul className="mt-3 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
               {byYear.map((c) => (
                 <li
                   key={c.id}

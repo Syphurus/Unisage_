@@ -109,7 +109,7 @@ export default function CuratorPage() {
       />
 
       {/* Hero */}
-      <section className="px-5 mt-2">
+      <section className="px-5 mt-2 md:px-8 lg:px-12">
         <HighlightCard
           caption={
             <>
@@ -137,8 +137,9 @@ export default function CuratorPage() {
         </HighlightCard>
       </section>
 
-      {/* Sequence */}
-      <section className="px-5 pt-7">
+      {/* Sequence + Yield (2-col on lg+) */}
+      <div className="lg:px-12 lg:grid lg:grid-cols-3 lg:gap-10 lg:items-start">
+      <section className="px-5 pt-7 md:px-8 lg:px-0 lg:pt-7 lg:col-span-2">
         <SectionHeader
           title="Sequence"
           meta={`${plan.length} blocks`}
@@ -202,7 +203,7 @@ export default function CuratorPage() {
       </section>
 
       {/* Yield projection */}
-      <section className="px-5 pt-7 pb-4">
+      <section className="px-5 pt-7 pb-4 md:px-8 lg:px-0 lg:pt-7 lg:col-span-1">
         <SectionHeader title="Yield projection" />
         <div className="mt-3 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4">
           <div className="flex items-center justify-between gap-2">
@@ -227,6 +228,7 @@ export default function CuratorPage() {
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 }

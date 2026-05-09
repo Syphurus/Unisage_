@@ -85,7 +85,7 @@ export default function SubjectSyllabusPage({
         rightIcon={<Filter className="h-4 w-4" />}
       />
 
-      <section className="px-5 mt-2">
+      <section className="px-5 mt-2 md:px-8 lg:px-12">
         <div className="flex items-center gap-4 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4">
           <MiniDonut value={percentage || 0} size={64} stroke={5} />
           <div className="min-w-0 flex-1">
@@ -98,9 +98,9 @@ export default function SubjectSyllabusPage({
         </div>
       </section>
 
-      <section className="px-5 pt-7">
+      <section className="px-5 pt-7 md:px-8 lg:px-12">
         <SectionHeader title="Units" meta="ordered by yield" />
-        <ul className="mt-3 space-y-3">
+        <ul className="mt-3 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           {isLoading ? (
             <li className="py-6 text-center text-[13px] text-chalk-500">
               Loading…
@@ -173,9 +173,9 @@ export default function SubjectSyllabusPage({
       </section>
 
       {groups.length > 0 && (
-        <section className="px-5 pt-7">
+        <section className="px-5 pt-7 md:px-8 lg:px-12">
           <SectionHeader title="Resources by type" />
-          <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             {[
               { key: "long_notes", label: "Long notes" },
               { key: "short_notes", label: "Short notes" },

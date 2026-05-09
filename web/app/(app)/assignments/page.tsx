@@ -61,9 +61,9 @@ export default function AssignmentsPage() {
         showTheme
       />
 
-      <section className="px-5">
+      <section className="px-5 md:px-8 lg:px-12">
         <SectionHeader title="To do" meta={`active · ${todo.length}`} />
-        <ul className="mt-3 space-y-3">
+        <ul className="mt-3 space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
           {todo.length === 0 ? (
             <li className="py-6 text-center text-[13px] text-chalk-500">
               Nothing pending. Nice.
@@ -75,9 +75,9 @@ export default function AssignmentsPage() {
       </section>
 
       {done.length > 0 && (
-        <section className="px-5 pt-7 pb-4">
+        <section className="px-5 pt-7 pb-4 md:px-8 lg:px-12">
           <SectionHeader title="Submitted" meta={`done · ${done.length}`} />
-          <ul className="mt-3 space-y-3">
+          <ul className="mt-3 space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
             {done.map((a) => (
               <AssignmentRow key={a.id} c={a} done />
             ))}
