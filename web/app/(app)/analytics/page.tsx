@@ -79,7 +79,7 @@ export default function AnalyticsPage() {
       <TopHeader caption="LAST 7 DAYS · LIVE" title="Analytics" showTheme />
 
       {/* Trend chart */}
-      <section className="px-5">
+      <section className="px-5 md:px-8 lg:px-12">
         <div className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5">
           <div className="flex items-center justify-between gap-2">
             <p className="caption">Recall accuracy · trend</p>
@@ -103,8 +103,9 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
+      <div className="lg:px-12 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
       {/* Mastery by subject */}
-      <section className="px-5 pt-7">
+      <section className="px-5 pt-7 md:px-8 lg:px-0 lg:pt-7">
         <SectionHeader title="Mastery by subject" />
         <ul className="mt-3 space-y-3">
           {mastery.length === 0 ? (
@@ -141,7 +142,7 @@ export default function AnalyticsPage() {
       </section>
 
       {/* Time allocation */}
-      <section className="px-5 pt-7 pb-4">
+      <section className="px-5 pt-7 pb-4 md:px-8 lg:px-0 lg:pt-7">
         <SectionHeader title="Time allocation" />
         <ul className="mt-3 space-y-3">
           {timeAllocation.length === 0 ? (
@@ -173,6 +174,7 @@ export default function AnalyticsPage() {
           )}
         </ul>
       </section>
+      </div>
     </div>
   );
 }

@@ -169,7 +169,7 @@ export function QuizViewer({
     ).length;
     const pct = Math.round((correct / total) * 100);
     return (
-      <div className="min-h-screen px-5 pt-12 pb-32 text-center">
+      <div className="min-h-screen px-5 pt-12 pb-32 text-center mx-auto w-full lg:max-w-2xl">
         <Trophy className="mx-auto h-12 w-12 text-mint-400" />
         <h1 className="mt-6 text-[28px] font-bold text-[rgb(var(--fg))]">
           Lab session complete
@@ -192,7 +192,7 @@ export function QuizViewer({
   }
 
   return (
-    <div className="min-h-screen pb-32">
+    <div className="min-h-screen pb-32 mx-auto w-full lg:max-w-2xl">
       <header className="flex items-center justify-between gap-4 px-5 pt-5">
         <button
           onClick={onBack}

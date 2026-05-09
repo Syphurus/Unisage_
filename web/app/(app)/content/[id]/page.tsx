@@ -226,7 +226,7 @@ export default function ContentPage() {
         rightIcon={<Filter className="h-4 w-4" />}
       />
 
-      <div className="px-5 pb-12">
+      <div className="px-5 pb-12 md:px-8 lg:px-12 lg:max-w-3xl xl:max-w-4xl lg:mx-auto">
         {(content.type === "long_notes" || content.type === "short_notes") && (
           <NotesView content={content} />
         )}

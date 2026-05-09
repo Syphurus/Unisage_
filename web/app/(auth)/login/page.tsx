@@ -38,7 +38,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen pb-32">
       <TopHeader back="/" />
-      <div className="px-5 pt-2">
+      <div className="px-5 pt-2 md:px-8 md:pt-4">
         <Pill variant="mint" className="mb-4">
           Welcome back
         </Pill>
