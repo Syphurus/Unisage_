@@ -49,9 +49,9 @@ export default function YouPage() {
     <div className="min-h-screen">
       <TopHeader title="Profile" showTheme />
 
-      <section className="px-5">
-        <div className="flex items-start gap-4">
-          <span className="grid h-16 w-16 place-items-center rounded-[16px] bg-mint-500 text-[24px] font-black text-ink-950">
+      <section className="px-5 md:px-8 lg:px-12">
+        <div className="flex items-start gap-4 lg:gap-6">
+          <span className="grid h-16 w-16 lg:h-20 lg:w-20 place-items-center rounded-[16px] bg-mint-500 text-[24px] lg:text-[28px] font-black text-ink-950">
             {initials}
           </span>
           <div className="min-w-0 flex-1">
@@ -71,9 +71,10 @@ export default function YouPage() {
         </div>
       </section>
 
-      <section className="px-5 pt-7">
+      <div className="lg:px-12 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
+      <section className="px-5 pt-7 md:px-8 lg:px-0">
         <SectionHeader title="Mission stats" />
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="mt-3 grid grid-cols-2 gap-3 lg:gap-4">
           <StatTile
             value={`${Math.floor((stats?.totalStudyMinutes ?? 0) / 60)}h ${(stats?.totalStudyMinutes ?? 0) % 60}m`}
             label="Time invested"
@@ -94,7 +95,7 @@ export default function YouPage() {
         </div>
       </section>
 
-      <section className="px-5 pt-7">
+      <section className="px-5 pt-7 md:px-8 lg:px-0">
         <SectionHeader title="Settings" />
         <ul className="mt-3 divide-y divide-white/[0.04] rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))]">
           <SettingsRow
@@ -134,6 +135,7 @@ export default function YouPage() {
           />
         </ul>
       </section>
+      </div>
 
       <p className="mt-8 mb-2 text-center text-[10px] uppercase tracking-cap text-chalk-500">
         UniSage · build v2.6

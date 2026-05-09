@@ -65,16 +65,16 @@ export default function LearnPage() {
         showTheme
       />
 
-      <div className="px-5">
+      <div className="px-5 md:px-8 lg:px-12">
         <TabStrip<SortMode>
           tabs={TABS}
           active={sort}
           onChange={setSort}
-          className="-mx-5 px-5"
+          className="-mx-5 px-5 md:-mx-8 md:px-8 lg:-mx-12 lg:px-12"
         />
       </div>
 
-      <div className="px-5 mt-6">
+      <div className="px-5 mt-6 md:px-8 lg:px-12">
         {isLoading && subjects.length === 0 ? (
           <p className="py-8 text-center text-[13px] text-chalk-500">
             Loading subjects…
@@ -85,7 +85,7 @@ export default function LearnPage() {
             sem {user?.semester}
           </p>
         ) : (
-          <ul className="divide-y divide-white/[0.04]">
+          <ul className="divide-y divide-white/[0.04] lg:grid lg:grid-cols-2 lg:gap-x-10 lg:divide-y-0 lg:[&>*]:border-b lg:[&>*]:border-white/[0.04]">
             {sorted.map((row) => {
               const tone =
                 row.pct >= 75 ? "mint" : row.pct >= 50 ? "ember" : "flame";

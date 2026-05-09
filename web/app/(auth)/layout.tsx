@@ -7,7 +7,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <PhoneFrame>
+    <PhoneFrame className="md:!max-w-[520px] lg:!max-w-[560px]">
       <RouteTransition>{children}</RouteTransition>
     </PhoneFrame>
   );
