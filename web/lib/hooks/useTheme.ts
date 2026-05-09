@@ -7,14 +7,12 @@ export type ThemeMode = "light" | "dark";
 const STORAGE_KEY = "unisage-theme";
 
 function resolveInitialTheme(): ThemeMode {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
 
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved === "light" || saved === "dark") return saved;
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return "dark";
 }
 
 function applyTheme(theme: ThemeMode) {
@@ -26,7 +24,7 @@ function applyTheme(theme: ThemeMode) {
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<ThemeMode>("light");
+  const [theme, setTheme] = useState<ThemeMode>("dark");
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
