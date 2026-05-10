@@ -80,7 +80,13 @@ app.use(
   cors({
     origin: env.CORS_ORIGINS,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "bypass-tunnel-reminder"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "bypass-tunnel-reminder",
+      "Idempotency-Key",
+      "If-Match",
+    ],
     credentials: true,
     maxAge: 86400, // preflight cache: 24 hours
   })
