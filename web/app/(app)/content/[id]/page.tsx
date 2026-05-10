@@ -46,6 +46,21 @@ const TYPE_CAPTIONS: Record<string, string> = {
   assignments: "ASSIGNMENTS",
 };
 
+function parseFlexibleJson(raw: string) {
+  const normalized = String(raw)
+    .trim()
+    .replace(/```(?:json)?/gi, "")
+    .replace(/```/g, "")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'");
+
+  try {
+    return JSON.parse(normalized);
+  } catch {
+    return JSON.parse(normalized.replace(/,\s*([}\]])/g, "$1"));
+  }
+}
+
 function expandFlashcards(contentItems: Content[]): Content[] {
   const result: Content[] = [];
   const pushCard = (
@@ -447,7 +462,11 @@ function PredictorPaperView({ content }: { content: Content }) {
   const data = (() => {
     let d: any = content.data;
     if (typeof d === "string") {
-      try { d = JSON.parse(d); } catch { d = {}; }
+      try {
+        d = parseFlexibleJson(d);
+      } catch {
+        d = {};
+      }
     }
     return d || {};
   })();

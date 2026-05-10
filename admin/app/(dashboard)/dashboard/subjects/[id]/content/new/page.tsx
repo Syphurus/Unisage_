@@ -17,7 +17,7 @@ const contentTypes = {
   flashcard: { label: "Flashcards", kind: "json" },
   quiz: { label: "Quizzes", kind: "json" },
   paper_predictor: { label: "Paper Predictor", kind: "json" },
-  exam_tips: { label: "Exam Tips", kind: "json" },
+  exam_tips: { label: "Exam Tips", kind: "notes" },
   pyqs: { label: "PYQs", kind: "pyqs" },
   syllabus: { label: "Syllabus", kind: "pyqs" },
   assignments: { label: "Assignments", kind: "pyqs" },
@@ -95,7 +95,7 @@ export default function SubjectContentNewPage() {
           {config.kind === "notes" ? (
             <NotesEditor
               subjectId={subjectId}
-              noteType={type as "long_notes" | "short_notes"}
+              noteType={type as "long_notes" | "short_notes" | "exam_tips"}
               initialData={
                 editingContent
                   ? {

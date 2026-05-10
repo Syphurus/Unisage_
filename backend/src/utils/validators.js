@@ -406,7 +406,7 @@ const updateContent = {
   params: uuidParam,
   body: Joi.object({
     title: Joi.string().max(300).allow("", null),
-    data: Joi.object(),
+    data: Joi.alternatives().try(Joi.object(), Joi.array(), Joi.string()),
     orderIndex: Joi.number().integer().min(0),
     isPublished: Joi.boolean(),
   }).min(1),

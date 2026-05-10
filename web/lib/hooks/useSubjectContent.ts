@@ -175,7 +175,7 @@ export function useSubjectContent(subjectId: string) {
 
       return { units, subject, byType };
     },
-    { revalidateOnFocus: false, dedupingInterval: 30_000 },
+    { revalidateOnFocus: true, dedupingInterval: 5_000 },
   );
 
   const aggregate: SubjectAggregate = {
