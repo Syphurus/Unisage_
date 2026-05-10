@@ -373,8 +373,8 @@ const updateUnit = {
 
 const createContent = {
   body: Joi.object({
-    subjectId: Joi.string().uuid(),
-    unitId: Joi.string().uuid(),
+    subjectId: Joi.string().uuid().optional().allow(null),
+    unitId: Joi.string().uuid().optional().allow(null),
     type: Joi.string()
       .valid(
         "long_notes",
@@ -396,7 +396,7 @@ const createContent = {
     isPublished: Joi.boolean().default(false),
   }).custom((value, helpers) => {
     if (!value.subjectId && !value.unitId) {
-      return helpers.message("subjectId or unitId is required");
+      return helpers.error("any.custom", { message: "Either subjectId or unitId is required" });
     }
     return value;
   }),

@@ -9,7 +9,6 @@ import {
   Users,
   BarChart3,
   ChevronLeft,
-  GraduationCap,
   CreditCard,
 } from "lucide-react";
 import { useState } from "react";
@@ -62,8 +61,8 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-[rgb(var(--border))] px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white">
-          <GraduationCap className="h-5 w-5" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+          <img src="/logo.png" alt="UniSage Logo" className="h-9 w-9" />
         </div>
         {!collapsed && (
           <span className="text-lg font-bold tracking-tight text-[rgb(var(--fg))]">

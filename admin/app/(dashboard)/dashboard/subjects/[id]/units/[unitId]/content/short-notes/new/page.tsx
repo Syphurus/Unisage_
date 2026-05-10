@@ -39,6 +39,7 @@ export default function NewShortNotesPage() {
           </CardHeader>
           <CardContent>
             <NotesEditor
+              subjectId={subjectId}
               unitId={unitId}
               noteType="short_notes"
               onSuccess={() =>

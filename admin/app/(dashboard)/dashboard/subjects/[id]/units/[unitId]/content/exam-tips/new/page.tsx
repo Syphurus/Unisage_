@@ -39,6 +39,7 @@ export default function NewExamTipsPage() {
                 PDF auto-formatting. Same shape (data.html) so the web reader
                 renders them with identical typography. */}
             <NotesEditor
+              subjectId={subjectId}
               unitId={unitId}
               noteType="exam_tips"
               onSuccess={() =>

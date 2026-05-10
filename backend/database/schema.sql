@@ -75,7 +75,7 @@ CREATE TABLE units (
 -- ============================================================
 -- CONTENT TYPES ENUM
 -- ============================================================
-CREATE TYPE content_type AS ENUM ('long_notes', 'short_notes', 'flashcard', 'quiz', 'paper_predictor', 'exam_tips', 'pyqs');
+CREATE TYPE content_type AS ENUM ('long_notes', 'short_notes', 'flashcard', 'quiz', 'paper_predictor', 'exam_tips', 'pyqs', 'syllabus', 'assignments');
 
 -- ============================================================
 -- FILES TABLE (for PYQs and other file uploads)

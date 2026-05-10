@@ -38,14 +38,6 @@ import {
 } from "lucide-react";
 import type { Subject } from "@/lib/types";
 
-const PREP_MODES = [
-  { id: "tomorrow", label: "If Exam Was Tomorrow", meta: "42 min · 6 cards" },
-  { id: "crash", label: "Crash Prep", meta: "85 min · 3 clusters" },
-  { id: "high-prob", label: "High Probability Only", meta: "55 min · 8 topics" },
-  { id: "pyq", label: "PYQ Sprint", meta: "30 min · 5 questions" },
-  { id: "weak", label: "Weak Topics", meta: "60 min · 4 zones" },
-];
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const { subjects, isLoading: subjLoading } = useSubjects(
@@ -56,7 +48,6 @@ export default function DashboardPage() {
   const { attempts } = useQuizAttempts();
   const { stats: dashStats } = useDashboardStats();
   const { subjects: subjectAnalytics } = useMySubjectAnalytics();
-  const [activeMode, setActiveMode] = useState("crash");
 
   // Source of truth: rollup-backed analytics (subject_progress). Falls back
   // to live legacy stats when the rollup is empty.
@@ -116,39 +107,6 @@ export default function DashboardPage() {
           </h1>
         </Section>
       </PageContainer>
-
-      {/* Prep modes */}
-      <Section density="compact" className="!py-4">
-        <div className="px-5 md:px-8 lg:px-10 xl:px-14">
-          <div className="flex gap-2.5 lg:gap-3 overflow-x-auto scrollbar-none lg:flex-wrap pb-1 lg:overflow-visible -mx-5 md:-mx-0 px-5 md:px-0">
-            {PREP_MODES.map((m) => {
-              const active = activeMode === m.id;
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => setActiveMode(m.id)}
-                  className={`shrink-0 rounded-card px-4 py-3 lg:px-5 lg:py-4 text-left transition-all ${
-                    active
-                      ? "bg-mint-500 text-ink-950 shadow-[0_8px_24px_-8px_rgba(31,184,144,0.5)]"
-                      : "border border-white/[0.06] bg-[rgb(var(--bg-elev))] text-[rgb(var(--fg))] hover:bg-[rgb(var(--bg-subtle))]"
-                  }`}
-                >
-                  <p
-                    className={`text-[12.5px] lg:text-[13px] font-semibold ${active ? "text-ink-950" : "text-[rgb(var(--fg))]"}`}
-                  >
-                    {m.label}
-                  </p>
-                  <p
-                    className={`mt-0.5 text-[10.5px] lg:text-[11px] ${active ? "text-ink-950/70" : "text-chalk-500"}`}
-                  >
-                    {m.meta}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </Section>
 
       {/* Top grid: AI focus + Continue revision (lg side-by-side) */}
       <PageContainer>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { useSubjects } from "@/lib/hooks/useSubjects";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -9,20 +9,11 @@ import { subjectsAPI } from "@/lib/api";
 import type { Content, Subject } from "@/lib/types";
 import { MobileTopBar, PageHeader } from "@/components/unisage/AppShell";
 import { PageContainer, Section } from "@/components/unisage/PageContainer";
-import {
-  Pill,
-  HighlightCard,
-  AnnotationBlock,
-  SectionHeader,
-  StatTile,
-} from "@/components/unisage/primitives";
-import {
-  Skeleton,
-  SkeletonCard,
-  SkeletonText,
-} from "@/components/unisage/Skeleton";
-import { ArrowRight, Search, Sparkles, AlertCircle } from "lucide-react";
+import { Pill, SectionHeader, StatTile } from "@/components/unisage/primitives";
+import { SkeletonCard } from "@/components/unisage/Skeleton";
+import { Search, Sparkles, AlertCircle } from "lucide-react";
 import { PaywallGate } from "@/components/billing/PaywallGate";
+import { ErrorState } from "@/components/shared/ErrorState";
 
 type Aggregated = {
   subject: Subject;
@@ -40,13 +31,16 @@ export default function PredictorPage() {
 function PredictorPageInner() {
   const { user } = useAuth();
   const { subjects, isLoading: subjLoading } = useSubjects(
-    user?.semester ? { year: user.year, semester: user.semester } : undefined,
+    user?.semester ? { year: user.year, semester: user.semester } : undefined
   );
   const [activeId, setActiveId] = useState<string | "all">("all");
   const [search, setSearch] = useState("");
 
-  // Fetch all subject content via SWR (cached + revalidated)
-  const subjectIds = useMemo(() => subjects.map((s) => s.id).join(","), [subjects]);
+  const subjectIds = useMemo(
+    () => subjects.map((s) => s.id).join(","),
+    [subjects]
+  );
+
   const { data, error, isLoading } = useSWR(
     subjectIds ? `predictor-aggregate-${subjectIds}` : null,
     async (): Promise<Aggregated[]> => {
@@ -54,8 +48,6 @@ function PredictorPageInner() {
         subjects.map(async (s) => {
           const res: any = await subjectsAPI.getContent(s.id).catch(() => null);
           const d = res?.data ?? res ?? {};
-          // Backend returns content as an object grouped by type:
-          // { content: { paper_predictor: [...], long_notes: [...], ... } }
           const bucket: Content[] = Array.isArray(d?.content?.paper_predictor)
             ? d.content.paper_predictor.map((it: any) => ({
                 ...it,
@@ -68,11 +60,11 @@ function PredictorPageInner() {
               }))
             : [];
           return { subject: s, papers: bucket };
-        }),
+        })
       );
       return results;
     },
-    { revalidateOnFocus: false },
+    { revalidateOnFocus: false }
   );
 
   const aggregated: Aggregated[] = data || [];
@@ -81,8 +73,7 @@ function PredictorPageInner() {
 
   const visible = useMemo(() => {
     let arr = aggregated;
-    if (activeId !== "all")
-      arr = arr.filter((a) => a.subject.id === activeId);
+    if (activeId !== "all") arr = arr.filter((a) => a.subject.id === activeId);
     if (search) {
       const s = search.toLowerCase();
       arr = arr
@@ -92,7 +83,7 @@ function PredictorPageInner() {
             (p) =>
               p.title.toLowerCase().includes(s) ||
               a.subject.name.toLowerCase().includes(s) ||
-              a.subject.code.toLowerCase().includes(s),
+              a.subject.code.toLowerCase().includes(s)
           ),
         }))
         .filter((a) => a.papers.length > 0);
@@ -126,7 +117,10 @@ function PredictorPageInner() {
       <PageContainer>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 pb-6">
           <StatTile value={totalPapers} label="Predicted papers" tone="mint" />
-          <StatTile value={subjectsWithPapers.length} label="Subjects covered" />
+          <StatTile
+            value={subjectsWithPapers.length}
+            label="Subjects covered"
+          />
           <StatTile value="88%" label="Confidence" tone="mint" />
           <StatTile value="v8.2" label="Model version" />
         </div>
@@ -170,41 +164,7 @@ function PredictorPageInner() {
         </div>
       </PageContainer>
 
-      {/* Highlight strip */}
-      <PageContainer>
-        <Section density="compact">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
-            <HighlightCard
-              caption={
-                <>
-                  <span className="text-mint-400">HOW IT WORKS</span>
-                </>
-              }
-              dot="mint"
-            >
-              <p className="text-[13.5px] leading-relaxed text-chalk-400">
-                Our model crawls 8 cycles of past papers per subject, weights
-                each topic by frequency × marks-per-minute, then assembles a
-                question paper that mirrors the upcoming exam&apos;s likely
-                shape.
-              </p>
-            </HighlightCard>
-            <div className="grid grid-cols-3 gap-3 lg:gap-4">
-              <AnnotationBlock label="Common trap" tone="flame">
-                Past-year traps that cost 4+ marks.
-              </AnnotationBlock>
-              <AnnotationBlock label="PYQ evidence" tone="mint">
-                Cycle proof of recurring sub-questions.
-              </AnnotationBlock>
-              <AnnotationBlock label="Strategic note" tone="mint">
-                Time budget &amp; sequencing per question.
-              </AnnotationBlock>
-            </div>
-          </div>
-        </Section>
-      </PageContainer>
-
-      {/* Listings */}
+      {/* Content */}
       <PageContainer>
         <Section density="compact">
           <SectionHeader
@@ -217,7 +177,6 @@ function PredictorPageInner() {
           />
 
           <div className="mt-5">
-            {/* Loading */}
             {(isLoading || subjLoading) && totalPapers === 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -257,15 +216,18 @@ function PredictorPageInner() {
             END · UNISAGE INTELLIGENCE MODEL · v8.2
           </p>
           <p className="mt-2 text-[12px] text-chalk-400 max-w-xl mx-auto">
-            Reconstructed from past papers and posterior probability models.
-            For revision focus only — final exam content is set by your
-            university.
+            Reconstructed from past papers and posterior probability models. For
+            revision focus only — final exam content is set by your university.
           </p>
         </div>
       </PageContainer>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// FilterPill
+// ---------------------------------------------------------------------------
 
 function FilterPill({
   active,
@@ -295,6 +257,10 @@ function FilterPill({
   );
 }
 
+// ---------------------------------------------------------------------------
+// SubjectGroup
+// ---------------------------------------------------------------------------
+
 function SubjectGroup({ group }: { group: Aggregated }) {
   return (
     <section>
@@ -312,23 +278,69 @@ function SubjectGroup({ group }: { group: Aggregated }) {
           Open subject →
         </Link>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {group.papers.map((p, i) => (
-          <PredictorCard key={p.id} paper={p} index={i} />
-        ))}
+        {(() => {
+          const code = String(group.subject.code || "").toLowerCase();
+          const name = String(group.subject.name || "").toLowerCase();
+            const patterns = [
+              "oops",
+              "oop",
+              "object",
+              "object oriented",
+              "object-oriented",
+              "dsa",
+              "data structures",
+              "data-structures",
+              "data structure",
+              "algorithms",
+              "data structures & algorithms",
+            ];
+            const matches = patterns.some((p) => code.includes(p) || name.includes(p));
+            if (matches) {
+            return group.papers.map((p, i) => (
+              <PredictorCard key={p.id} paper={p} index={i} />
+            ));
+          }
+          return (
+            <ComingSoonCard key={group.subject.id} subject={group.subject} />
+          );
+        })()}
       </div>
     </section>
   );
 }
 
-function PredictorCard({ paper, index }: { paper: Content; index: number }) {
-  const data = paper.data as any;
-  const meta = data?.meta || {};
+// ---------------------------------------------------------------------------
+// ComingSoonCard
+// ---------------------------------------------------------------------------
+
+function ComingSoonCard({ subject }: { subject: Subject }) {
   return (
-    <Link
-      href={`/content/${paper.id}`}
-      className="group flex flex-col rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 transition-all hover:border-mint-500/30 hover:bg-[rgb(var(--bg-subtle))]"
-    >
+    <div className="col-span-1 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-6 flex flex-col items-start justify-center gap-3">
+      <p className="caption">{subject.code}</p>
+      <h4 className="text-[16px] font-semibold text-[rgb(var(--fg))]">
+        {subject.name}
+      </h4>
+      <p className="text-[13px] text-chalk-400">
+        Coming soon — predictions for this subject are being rolled out.
+      </p>
+      <div className="mt-3">
+        <Pill disabled>Coming soon</Pill>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PredictorCard
+// ---------------------------------------------------------------------------
+
+function PredictorCard({ paper, index }: { paper: Content; index: number }) {
+  const meta = (paper as any).meta ?? {};
+
+  return (
+    <div className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 flex flex-col">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
           PAPER · {String(index + 1).padStart(2, "0")}
@@ -347,13 +359,13 @@ function PredictorCard({ paper, index }: { paper: Content; index: number }) {
           tone="mint"
         />
       </div>
-      <div className="mt-5 inline-flex items-center text-[13px] font-medium text-chalk-300 group-hover:text-mint-400 transition-colors">
-        Drill paper
-        <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-      </div>
-    </Link>
+    </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Stat
+// ---------------------------------------------------------------------------
 
 function Stat({
   label,
@@ -368,13 +380,19 @@ function Stat({
     <div>
       <p className="caption mb-0.5">{label}</p>
       <p
-        className={`text-[14px] font-bold ${tone === "mint" ? "text-mint" : "text-[rgb(var(--fg))]"}`}
+        className={`text-[14px] font-bold ${
+          tone === "mint" ? "text-mint" : "text-[rgb(var(--fg))]"
+        }`}
       >
         {value}
       </p>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// AnalyzingState
+// ---------------------------------------------------------------------------
 
 function AnalyzingState({
   subjects,
@@ -385,9 +403,6 @@ function AnalyzingState({
   hasFilters: boolean;
   onClear: () => void;
 }) {
-  // Show one placeholder card per subject with concrete status copy. This
-  // replaces the prior "no predicted papers yet" box that read like a 404.
-  // The model is genuinely processing; we say so.
   if (hasFilters) {
     return (
       <div className="rounded-card border border-dashed border-white/[0.08] py-12 text-center">
@@ -428,8 +443,8 @@ function AnalyzingState({
             {s.name}
           </h4>
           <p className="mt-3 text-[12.5px] leading-relaxed text-chalk-400">
-            Analyzing 8 exam cycles for {s.code}. Predicted paper publishes
-            here before your exam date.
+            Analyzing 8 exam cycles for {s.code}. Predicted paper publishes here
+            before your exam date.
           </p>
           <div className="mt-4 flex items-center gap-2 text-[11px] text-chalk-500">
             <span className="h-1.5 w-1.5 inline-block rounded-full bg-mint-400 animate-pulse-soft" />
@@ -437,20 +452,6 @@ function AnalyzingState({
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function ErrorState() {
-  return (
-    <div className="rounded-card border border-flame-500/30 bg-flame-500/5 py-12 text-center">
-      <AlertCircle className="mx-auto h-7 w-7 text-flame-500" />
-      <p className="mt-4 text-[15px] font-semibold text-[rgb(var(--fg))]">
-        Failed to load predictor papers
-      </p>
-      <p className="mt-1 text-[13px] text-chalk-400 max-w-md mx-auto">
-        Network or backend error. Refresh the page or try again in a moment.
-      </p>
     </div>
   );
 }

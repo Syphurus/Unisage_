@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/hooks/useTheme";
@@ -39,21 +40,33 @@ const MOBILE_TABS = [
 ];
 
 // ─────────────────────────────────────────────────────────
+// Refresh Logo Component
+// ─────────────────────────────────────────────────────────
+function RefreshLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
+  const sizeMap = {
+    sm: 24,
+    md: 28,
+    lg: 36,
+  };
+  const iconSize = sizeMap[size];
+
+  return (
+    <Image
+      src="/logo.png"
+      alt="UniSage Logo"
+      width={iconSize}
+      height={iconSize}
+      className="shrink-0"
+    />
+  );
+}
+
 // Wordmark
 // ─────────────────────────────────────────────────────────
 export function Wordmark({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   return (
     <div className="flex items-center gap-2">
-      <span
-        className={cn(
-          "grid place-items-center rounded-[8px] bg-mint-500 font-black text-ink-950",
-          size === "sm" && "h-6 w-6 text-[12px]",
-          size === "md" && "h-7 w-7 text-[14px]",
-          size === "lg" && "h-9 w-9 text-[16px]",
-        )}
-      >
-        ◆
-      </span>
+      <RefreshLogo size={size} />
       <span
         className={cn(
           "font-semibold tracking-tight text-[rgb(var(--fg))]",
@@ -151,15 +164,6 @@ function DesktopSidebar() {
         <Link href="/dashboard" className="inline-flex">
           <Wordmark size="md" />
         </Link>
-      </div>
-
-      {/* Search */}
-      <div className="px-4 pb-4">
-        <button className="flex w-full items-center gap-2.5 rounded-[10px] border border-white/[0.06] bg-[rgb(var(--bg-subtle))] px-3 py-2 text-left text-[13px] text-chalk-400 hover:bg-[rgb(var(--bg-subtle))]/60 transition-colors">
-          <Search className="h-3.5 w-3.5" />
-          <span className="flex-1">Search</span>
-          <kbd className="text-[10px] font-mono text-chalk-500">⌘K</kbd>
-        </button>
       </div>
 
       {/* Nav */}
