@@ -184,8 +184,135 @@ export const sessionsAPI = {
     }),
   end: (id: string) =>
     api.put<unknown, ApiRes<unknown>>(`/api/sessions/${id}/end`),
+  /**
+   * Page-unload variant. Uses fetch with `keepalive: true` so the request
+   * survives tab close — required because axios cancels in-flight requests
+   * when the page navigates away. Best-effort; we don't read the response.
+   */
+  endKeepalive: (id: string) => keepaliveFetch(`/api/sessions/${id}/end`, "PUT"),
   getStats: () => api.get<unknown, ApiRes<SessionStats>>("/api/sessions/stats"),
 };
+
+// ──────────────────────────────────────────────────────────────────────
+// Analytics API — ingestion + dashboard reads (Phase 1+2 endpoints)
+// ──────────────────────────────────────────────────────────────────────
+export interface HeartbeatBody {
+  contentId: string;
+  subjectId?: string;
+  sessionId?: string;
+  deltaActiveSeconds: number;
+  maxScrollPct?: number;
+  sectionsViewed?: string[];
+  end?: boolean;
+}
+
+export interface AnalyticsEvent {
+  type: string;
+  contentId?: string;
+  subjectId?: string;
+  payload?: Record<string, unknown>;
+  occurredAt?: string;
+}
+
+export interface DashboardStats {
+  totalStudyMinutes: number;
+  totalSessions: number;
+  sessionsThisWeek: number;
+  completedContent: number;
+  quizzesAttempted: number;
+  averageQuizScore: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastActiveDay: string | null;
+  weeklyActivity: boolean[];
+  weakSubjectIds: string[];
+  timeline: Array<{ day: string; activeSeconds: number; quizPct: number | null }>;
+}
+
+export interface SubjectAnalytics {
+  subjectId: string;
+  subject: {
+    id: string;
+    name: string;
+    code: string;
+    year: number;
+    semester: number;
+  } | null;
+  totalContent: number;
+  completedContent: number;
+  completionPct: number;
+  activeMinutes: number;
+  quizAttempts: number;
+  avgQuizPct: number | null;
+  flashcardsReviewed: number;
+  flashcardsConfident: number;
+  weaknessScore: number;
+  lastStudiedAt: string | null;
+}
+
+export const analyticsAPI = {
+  heartbeat: (body: HeartbeatBody) =>
+    api.post<unknown, ApiRes<{ sessionId: string; totalActiveSeconds: number }>>(
+      "/api/analytics/heartbeat",
+      body
+    ),
+  /**
+   * Final flush variant for `pagehide` / unmount. Uses keepalive so the
+   * delta is recorded even when the page is closing.
+   */
+  heartbeatKeepalive: (body: HeartbeatBody) =>
+    keepaliveFetch("/api/analytics/heartbeat", "POST", body),
+  events: (events: AnalyticsEvent[]) =>
+    api.post<unknown, ApiRes<{ inserted: number }>>("/api/analytics/events", {
+      events,
+    }),
+  getMyDashboard: () =>
+    api.get<unknown, ApiRes<DashboardStats>>("/api/analytics/me"),
+  getMySubjects: () =>
+    api.get<unknown, ApiRes<SubjectAnalytics[]>>("/api/analytics/me/subjects"),
+};
+
+// ──────────────────────────────────────────────────────────────────────
+// Flashcards API — persistence of review decisions
+// ──────────────────────────────────────────────────────────────────────
+export interface FlashcardReviewBody {
+  cardIndex: number;
+  rating: "forgot" | "shaky" | "confident";
+  responseMs?: number | null;
+}
+
+export const flashcardsAPI = {
+  submitReviews: (contentId: string, reviews: FlashcardReviewBody[]) =>
+    api.post<unknown, ApiRes<{ inserted: number }>>(
+      "/api/flashcards/reviews",
+      { contentId, reviews }
+    ),
+};
+
+// ──────────────────────────────────────────────────────────────────────
+// keepalive helper — for sendBeacon-style fire-and-forget on unload
+// ──────────────────────────────────────────────────────────────────────
+function keepaliveFetch(
+  path: string,
+  method: "POST" | "PUT",
+  body?: unknown
+): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  const token = localStorage.getItem("token");
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  return fetch(`${API_URL}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    keepalive: true,
+    credentials: "include",
+  })
+    .then(() => undefined)
+    .catch(() => undefined);
+}
 
 // Admin API (Content Management)
 export const adminAPI = {

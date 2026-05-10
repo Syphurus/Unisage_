@@ -13,7 +13,14 @@ const { NotFoundError } = require("../utils/errors");
 async function submitAttempt(req, res, next) {
   try {
     const userId = req.user.id;
-    const { contentId, score, totalQuestions, answers, timeTaken } = req.body;
+    const {
+      contentId,
+      score,
+      totalQuestions,
+      answers,
+      timeTaken,
+      perQuestion,
+    } = req.body;
 
     // Verify content exists and is a quiz
     const { data: content, error: contentErr } = await supabase
@@ -34,16 +41,23 @@ async function submitAttempt(req, res, next) {
       });
     }
 
+    // perQuestion is optional — older clients may not send it. Only include
+    // it in the insert when present so we don't overwrite NULLs with [].
+    const insertRow = {
+      user_id: userId,
+      content_id: contentId,
+      score,
+      total_questions: totalQuestions,
+      answers: answers || {},
+      time_taken: timeTaken || null,
+    };
+    if (Array.isArray(perQuestion) && perQuestion.length > 0) {
+      insertRow.per_question = perQuestion;
+    }
+
     const { data, error } = await supabase
       .from("quiz_attempts")
-      .insert({
-        user_id: userId,
-        content_id: contentId,
-        score,
-        total_questions: totalQuestions,
-        answers: answers || {},
-        time_taken: timeTaken || null,
-      })
+      .insert(insertRow)
       .select()
       .single();
 

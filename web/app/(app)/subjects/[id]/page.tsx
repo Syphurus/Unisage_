@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSubject } from "@/lib/hooks/useSubjects";
 import { useSubjectProgress } from "@/lib/hooks/useProgress";
 import { useSubjectContent } from "@/lib/hooks/useSubjectContent";
+import { useStudySession } from "@/lib/hooks/useStudySession";
 import { MobileTopBar } from "@/components/unisage/AppShell";
 import { PageContainer } from "@/components/unisage/PageContainer";
 import {
@@ -38,6 +39,9 @@ export default function SubjectHubPage({
   const { subject, isLoading: subjLoading } = useSubject(params.id);
   const { percentage, completedContent, totalContent } =
     useSubjectProgress(params.id);
+  // Bracket time spent on this subject hub with a server-side session row.
+  // The hook handles start/end via fetch-keepalive on unload.
+  useStudySession(params.id);
   const { units, byType, isLoading } = useSubjectContent(params.id);
 
   const [activeUnit, setActiveUnit] = useState<string | "all">("all");

@@ -21,6 +21,10 @@ import {
   Pie,
   Cell,
   Legend,
+  AreaChart,
+  Area,
+  Line,
+  ComposedChart,
 } from "recharts";
 
 const CHART_COLORS = [
@@ -37,6 +41,14 @@ interface AnalyticsData {
   content: { totalSubjects: number; totalPublished: number };
   quizzes: { totalAttempts: number; averageScore: number };
   studySessions: { total: number; totalMinutes: number };
+  // Bonus payload added in Phase 2 (rollup-backed). Optional so the admin
+  // page degrades cleanly if backend is on an older build.
+  weeklyTimeline?: Array<{
+    day: string;
+    activeUsers: number;
+    quizAttempts: number;
+    readingMinutes: number;
+  }>;
 }
 
 interface Subject {
@@ -142,6 +154,81 @@ export default function AnalyticsPage() {
             changeType="positive"
           />
         </div>
+
+        {/* Engagement (last 7 days) — sourced from platform_daily_stats
+            rollup, populated nightly + every 30 min by pg_cron. */}
+        {analytics?.weeklyTimeline && analytics.weeklyTimeline.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Engagement · last {analytics.weeklyTimeline.length} days
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart
+                    data={analytics.weeklyTimeline.map((d) => ({
+                      day: d.day.slice(5),
+                      activeUsers: d.activeUsers,
+                      quizAttempts: d.quizAttempts,
+                      readingMinutes: d.readingMinutes,
+                    }))}
+                    margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 11, fill: "#6b7280" }}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      tick={{ fontSize: 11, fill: "#6b7280" }}
+                      allowDecimals={false}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fontSize: 11, fill: "#6b7280" }}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: "1px solid #e5e7eb",
+                        fontSize: 12,
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="activeUsers"
+                      fill="#4f46e5"
+                      name="Active users"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="quizAttempts"
+                      fill="#06b6d4"
+                      name="Quiz attempts"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="readingMinutes"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      name="Reading minutes"
+                      dot={{ r: 3 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Charts */}
         <div className="grid gap-6 lg:grid-cols-2">
