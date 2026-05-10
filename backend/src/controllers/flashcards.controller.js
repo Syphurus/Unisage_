@@ -43,6 +43,23 @@ async function submitReviews(req, res, next) {
       reviews
     );
 
+    // Mark the flashcard content as completed in user_progress
+    // (upsert so we don't error if a row already exists)
+    const { error: progressErr } = await supabase.from("user_progress").upsert(
+      {
+        user_id: req.user.id,
+        content_id: contentId,
+        completed: true,
+        completed_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,content_id" }
+    );
+
+    if (progressErr) {
+      console.error("Failed to mark flashcard as completed:", progressErr);
+      // Don't fail the response — reviews were persisted, just log the progress error
+    }
+
     res.status(201).json({ success: true, data: { inserted } });
   } catch (err) {
     next(err);
