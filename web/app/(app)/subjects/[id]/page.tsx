@@ -1,215 +1,253 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useSubject } from "@/lib/hooks/useSubjects";
 import { useSubjectProgress } from "@/lib/hooks/useProgress";
-import { subjectsAPI } from "@/lib/api";
-import type { Content } from "@/lib/types";
-import { TopHeader } from "@/components/unisage/AppShell";
+import { useSubjectContent } from "@/lib/hooks/useSubjectContent";
+import { MobileTopBar } from "@/components/unisage/AppShell";
+import { PageContainer } from "@/components/unisage/PageContainer";
 import {
   Pill,
-  SectionHeader,
+  MetaCaption,
   SegmentedProgress,
   MiniDonut,
-  MetaCaption,
+  StatTile,
 } from "@/components/unisage/primitives";
-import { Filter, Check, ChevronRight } from "lucide-react";
+import {
+  SkeletonCard,
+  Skeleton,
+  SkeletonText,
+} from "@/components/unisage/Skeleton";
+import { UnitsRail } from "@/components/unisage/SubjectHub/UnitsRail";
+import {
+  ContentTabs,
+  ContentTabId,
+  tabMeta,
+} from "@/components/unisage/SubjectHub/ContentTabs";
+import { ContentList } from "@/components/unisage/SubjectHub/ContentList";
+import { ChevronLeft, Sparkles } from "lucide-react";
+import type { Content } from "@/lib/types";
+import type { ContentByType } from "@/lib/hooks/useSubjectContent";
 
-type GroupedUnit = {
-  unit: { id: string; title: string; unitNumber?: number };
-  content: Record<string, Content[]>;
-};
-
-export default function SubjectSyllabusPage({
+export default function SubjectHubPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const { subject, isLoading } = useSubject(params.id);
-  const { percentage } = useSubjectProgress(params.id);
-  const [groups, setGroups] = useState<GroupedUnit[]>([]);
+  const { subject, isLoading: subjLoading } = useSubject(params.id);
+  const { percentage, completedContent, totalContent } =
+    useSubjectProgress(params.id);
+  const { units, byType, isLoading } = useSubjectContent(params.id);
 
-  useEffect(() => {
-    let alive = true;
-    subjectsAPI.getContent(params.id).then((res: any) => {
-      if (!alive) return;
-      const data = res?.data || res;
-      if (Array.isArray(data?.units)) {
-        setGroups(data.units);
-      } else if (data?.content) {
-        const map = new Map<string, GroupedUnit>();
-        const flatList: Content[] = Array.isArray(data.content)
-          ? data.content
-          : Object.values(data.content).flat();
-        flatList.forEach((c: Content) => {
-          const u = c.unit;
-          if (!u) return;
-          const key = u.id;
-          if (!map.has(key)) {
-            map.set(key, {
-              unit: {
-                id: u.id,
-                title: u.title,
-                unitNumber: u.unitNumber,
-              },
-              content: {},
-            });
-          }
-          const g = map.get(key)!;
-          if (!g.content[c.type]) g.content[c.type] = [];
-          g.content[c.type].push(c);
-        });
-        setGroups(Array.from(map.values()));
-      }
-    });
-    return () => {
-      alive = false;
+  const [activeUnit, setActiveUnit] = useState<string | "all">("all");
+  const [activeTab, setActiveTab] = useState<ContentTabId>("long_notes");
+
+  // Pick the first non-empty tab as default once data loads
+  const defaultTab = useMemo<ContentTabId>(() => {
+    const order: ContentTabId[] = [
+      "long_notes",
+      "short_notes",
+      "flashcard",
+      "quiz",
+      "pyqs",
+      "exam_tips",
+      "paper_predictor",
+      "syllabus",
+      "assignments",
+    ];
+    return (
+      (order.find(
+        (t) => byType[t]?.length > 0,
+      ) as ContentTabId) || "long_notes"
+    );
+  }, [byType]);
+
+  // If user hasn't picked a tab and current tab has no content, snap to default
+  const effectiveTab: ContentTabId =
+    byType[activeTab]?.length > 0 ? activeTab : defaultTab;
+
+  // Filter by active unit
+  const visibleByType: ContentByType = useMemo(() => {
+    if (activeUnit === "all") return byType;
+    const empty: ContentByType = {
+      long_notes: [],
+      short_notes: [],
+      flashcard: [],
+      quiz: [],
+      paper_predictor: [],
+      exam_tips: [],
+      pyqs: [],
+      syllabus: [],
+      assignments: [],
     };
-  }, [params.id]);
+    const u = units.find((x) => x.id === activeUnit);
+    if (!u) return empty;
+    return u.content;
+  }, [activeUnit, byType, units]);
 
-  const unitsCount = groups.length;
-  const topicCount = groups.reduce(
-    (sum, g) => sum + Object.values(g.content).flat().length,
-    0,
-  );
-
-  const weakUnits = Math.max(0, Math.floor(unitsCount * 0.4));
+  const totalResources = Object.values(byType).flat().length;
+  const visibleResources = Object.values(visibleByType).flat().length;
 
   return (
     <div className="min-h-screen">
-      <TopHeader
-        back="/learn"
-        caption={`${subject?.code ?? ""} · ${unitsCount} UNITS · ${topicCount} TOPICS`}
-        title="Syllabus"
-        rightIcon={<Filter className="h-4 w-4" />}
-      />
+      <MobileTopBar back="/learn" title={subject?.code ?? "Subject"} />
 
-      <section className="px-5 mt-2 md:px-8 lg:px-12">
-        <div className="flex items-center gap-4 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4">
-          <MiniDonut value={percentage || 0} size={64} stroke={5} />
-          <div className="min-w-0 flex-1">
-            <MetaCaption className="mb-1">Overall readiness</MetaCaption>
-            <p className="text-[13px] text-chalk-300">
-              {weakUnits} weak units ·{" "}
-              {Math.floor(topicCount * 0.4)} high-repeat topics covered
-            </p>
+      {/* Hero */}
+      <PageContainer>
+        <header className="pt-6 md:pt-10 lg:pt-14 pb-8 lg:pb-10 border-b border-white/[0.05]">
+          <div className="hidden lg:block mb-4">
+            <Link
+              href="/learn"
+              className="inline-flex items-center gap-1.5 text-[12px] text-chalk-400 hover:text-[rgb(var(--fg))] transition-colors"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              All subjects
+            </Link>
+          </div>
+          {subjLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-12 w-2/3" />
+              <SkeletonText lines={2} />
+            </div>
+          ) : subject ? (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
+              <div className="lg:col-span-8">
+                <MetaCaption className="mb-3">
+                  {subject.code} · YEAR {subject.year} · SEM {subject.semester}{" "}
+                  · {subject.credits || 4} CREDITS
+                </MetaCaption>
+                <h1 className="text-[36px] md:text-[48px] lg:text-[60px] font-bold leading-[1.05] tracking-[-0.02em] text-[rgb(var(--fg))]">
+                  {subject.name}
+                </h1>
+                {subject.description && (
+                  <p className="mt-4 max-w-2xl text-[14.5px] lg:text-[16px] leading-relaxed text-chalk-400">
+                    {subject.description}
+                  </p>
+                )}
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <Pill variant="mint">
+                    <Sparkles className="h-3 w-3" /> AI workspace
+                  </Pill>
+                  <Pill>{units.length} units</Pill>
+                  <Pill>{totalResources} resources</Pill>
+                </div>
+              </div>
+              <div className="lg:col-span-4">
+                <div className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6">
+                  <div className="flex items-center gap-4">
+                    <MiniDonut value={percentage || 0} size={64} stroke={5} />
+                    <div className="min-w-0 flex-1">
+                      <MetaCaption className="mb-1">
+                        Overall readiness
+                      </MetaCaption>
+                      <p className="text-[13px] text-chalk-300">
+                        {completedContent}/{totalContent} resources cleared
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <StatTile
+                      value={byType.flashcard.length}
+                      label="Flashcards"
+                    />
+                    <StatTile value={byType.quiz.length} label="Quizzes" />
+                    <StatTile value={byType.pyqs.length} label="PYQs" tone="mint" />
+                    <StatTile
+                      value={byType.assignments.length}
+                      label="Assigned"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[14px] text-chalk-400">Subject not found.</p>
+          )}
+        </header>
+      </PageContainer>
+
+      {/* Workspace: sidebar + content */}
+      <PageContainer>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 pt-6 lg:pt-8">
+          {/* Units rail */}
+          <aside className="lg:col-span-3 xl:col-span-3">
+            <div className="lg:sticky lg:top-6">
+              {isLoading && units.length === 0 ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <UnitsRail
+                  units={units}
+                  activeUnitId={activeUnit}
+                  onSelect={setActiveUnit}
+                />
+              )}
+              {units.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-white/[0.05]">
+                  <MetaCaption className="mb-2">In view</MetaCaption>
+                  <p className="text-[13px] text-chalk-300">
+                    {visibleResources} resources across{" "}
+                    {Object.values(visibleByType).filter((arr) => arr.length > 0).length}{" "}
+                    types
+                  </p>
+                  <SegmentedProgress
+                    value={
+                      visibleResources && totalResources
+                        ? Math.round((visibleResources / totalResources) * 100)
+                        : 0
+                    }
+                    segments={20}
+                    className="mt-3"
+                  />
+                </div>
+              )}
+            </div>
+          </aside>
+
+          {/* Tabbed content */}
+          <div className="lg:col-span-9 xl:col-span-9 min-w-0">
+            <ContentTabs
+              active={effectiveTab}
+              onChange={setActiveTab}
+              byType={visibleByType}
+            />
+            <div className="pt-6 lg:pt-8 pb-16">
+              <div className="mb-5 flex items-baseline justify-between gap-2">
+                <div>
+                  <p className="caption">
+                    {tabMeta(effectiveTab).sub}
+                  </p>
+                  <h2 className="mt-1 text-[22px] lg:text-[26px] font-bold tracking-[-0.005em] text-[rgb(var(--fg))]">
+                    {tabMeta(effectiveTab).label}
+                  </h2>
+                </div>
+                <p className="text-[12px] text-chalk-500">
+                  {visibleByType[effectiveTab]?.length ?? 0} item
+                  {visibleByType[effectiveTab]?.length === 1 ? "" : "s"}
+                </p>
+              </div>
+
+              {isLoading && totalResources === 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <SkeletonCard key={i} className="h-44" />
+                  ))}
+                </div>
+              ) : (
+                <ContentList
+                  type={effectiveTab}
+                  items={visibleByType[effectiveTab] || []}
+                />
+              )}
+            </div>
           </div>
         </div>
-      </section>
-
-      <section className="px-5 pt-7 md:px-8 lg:px-12">
-        <SectionHeader title="Units" meta="ordered by yield" />
-        <ul className="mt-3 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
-          {isLoading ? (
-            <li className="py-6 text-center text-[13px] text-chalk-500">
-              Loading…
-            </li>
-          ) : groups.length === 0 ? (
-            <li className="py-6 text-center text-[13px] text-chalk-500">
-              No units published yet.
-            </li>
-          ) : (
-            groups
-              .sort(
-                (a, b) => (a.unit.unitNumber || 0) - (b.unit.unitNumber || 0),
-              )
-              .map((g, i) => {
-                const totalCount = Object.values(g.content).flat().length;
-                const pct = Math.max(
-                  0,
-                  Math.min(100, percentage + (i % 3) * 6 - i * 4),
-                );
-                const tone = pct >= 80 ? "mint" : pct >= 50 ? "ember" : "flame";
-                return (
-                  <li key={g.unit.id}>
-                    <Link
-                      href={`/subjects/${params.id}/units/${g.unit.id}`}
-                      className="block rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4 transition-colors hover:bg-[rgb(var(--bg-subtle))]"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[10px] font-mono text-chalk-500">
-                          {String(g.unit.unitNumber || i + 1).padStart(2, "0")}
-                        </span>
-                        {pct >= 90 ? (
-                          <Pill variant="mint">
-                            <Check className="h-3 w-3" /> Done
-                          </Pill>
-                        ) : pct >= 75 ? (
-                          <Pill variant="mint">High yield</Pill>
-                        ) : null}
-                      </div>
-                      <p className="mt-1.5 text-[16px] font-semibold leading-tight text-[rgb(var(--fg))]">
-                        {g.unit.title}
-                      </p>
-                      <SegmentedProgress
-                        value={pct}
-                        tone={tone}
-                        className="mt-3"
-                      />
-                      <div className="mt-3 flex items-center justify-between gap-3">
-                        <p className="text-[11px] text-chalk-400">
-                          {totalCount} resources ·{" "}
-                          {Math.floor(totalCount * 1.5)} marks
-                        </p>
-                        <p
-                          className={`text-[14px] font-bold ${
-                            tone === "mint"
-                              ? "text-mint"
-                              : tone === "ember"
-                                ? "text-ember-400"
-                                : "text-flame-500"
-                          }`}
-                        >
-                          {pct}%
-                        </p>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })
-          )}
-        </ul>
-      </section>
-
-      {groups.length > 0 && (
-        <section className="px-5 pt-7 md:px-8 lg:px-12">
-          <SectionHeader title="Resources by type" />
-          <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-            {[
-              { key: "long_notes", label: "Long notes" },
-              { key: "short_notes", label: "Short notes" },
-              { key: "flashcard", label: "Recall cycles" },
-              { key: "quiz", label: "Retrieval lab" },
-              { key: "pyqs", label: "PYQs" },
-              { key: "exam_tips", label: "Exam tactics" },
-              { key: "paper_predictor", label: "Predictor" },
-              { key: "assignments", label: "Assignments" },
-            ].map(({ key, label }) => {
-              const list: Content[] = groups.flatMap(
-                (g) => g.content[key] || [],
-              );
-              if (list.length === 0) return null;
-              const first = list[0];
-              return (
-                <Link
-                  key={key}
-                  href={`/content/${first.id}`}
-                  className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4"
-                >
-                  <p className="text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
-                    {list.length} item{list.length > 1 ? "s" : ""}
-                  </p>
-                  <p className="mt-1.5 text-[14px] font-semibold text-[rgb(var(--fg))]">
-                    {label}
-                  </p>
-                  <ChevronRight className="mt-3 h-4 w-4 text-chalk-400" />
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      </PageContainer>
     </div>
   );
 }
