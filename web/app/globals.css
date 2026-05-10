@@ -259,6 +259,39 @@
     line-height: 1.7;
     font-size: 16px;
     font-feature-settings: "ss01" 1, "ss02" 1, "kern" 1;
+    /* Force the dark theme to win against admin Word/Docs HTML */
+    background: transparent;
+  }
+  /* Reset any color/background bleed from admin-uploaded HTML so our
+     theme always wins. Specific elements (code, blockquote, table head)
+     re-establish their backgrounds below with !important. */
+  .prose-notes *:not(code):not(pre):not(blockquote):not(thead):not(th):not(.callout):not([data-callout]) {
+    background-color: transparent !important;
+    background-image: none !important;
+  }
+  .prose-notes,
+  .prose-notes p,
+  .prose-notes div,
+  .prose-notes span,
+  .prose-notes li,
+  .prose-notes td,
+  .prose-notes dt,
+  .prose-notes dd,
+  .prose-notes blockquote,
+  .prose-notes article,
+  .prose-notes section {
+    color: rgb(var(--fg-muted));
+  }
+  .prose-notes h1,
+  .prose-notes h2,
+  .prose-notes h3,
+  .prose-notes h4,
+  .prose-notes h5,
+  .prose-notes h6,
+  .prose-notes strong,
+  .prose-notes b,
+  .prose-notes th {
+    color: rgb(var(--fg));
   }
   @media (min-width: 1024px) {
     .prose-notes {
@@ -328,8 +361,8 @@
 
   /* Inline code */
   .prose-notes code {
-    background: rgba(var(--mint), 0.1);
-    color: rgb(var(--mint-bright));
+    background: rgba(var(--mint), 0.1) !important;
+    color: rgb(var(--mint-bright)) !important;
     padding: 2px 7px;
     border-radius: 5px;
     font-family: var(--font-mono, "JetBrains Mono", monospace);
@@ -339,7 +372,7 @@
 
   /* Code blocks */
   .prose-notes pre {
-    background: rgb(var(--bg-elev));
+    background: rgb(var(--bg-elev)) !important;
     border: 1px solid rgba(var(--border), 0.08);
     border-radius: 12px;
     padding: 16px 20px;
@@ -350,8 +383,8 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   }
   .prose-notes pre code {
-    background: transparent;
-    color: rgb(var(--fg));
+    background: transparent !important;
+    color: rgb(var(--fg)) !important;
     padding: 0;
     border: 0;
     font-size: inherit;
@@ -361,7 +394,7 @@
   .prose-notes blockquote {
     border-left: 3px solid rgb(var(--mint));
     padding: 4px 0 4px 20px;
-    color: rgb(var(--fg-muted));
+    color: rgb(var(--fg-muted)) !important;
     margin: 1.5em 0;
     font-style: italic;
     font-size: 1.02em;
@@ -369,7 +402,7 @@
       90deg,
       rgba(var(--mint), 0.05) 0%,
       transparent 100%
-    );
+    ) !important;
   }
   .prose-notes blockquote p {
     margin: 0;
@@ -395,7 +428,10 @@
     overflow: hidden;
   }
   .prose-notes thead {
-    background: rgb(var(--bg-subtle));
+    background: rgb(var(--bg-subtle)) !important;
+  }
+  .prose-notes thead * {
+    background: transparent !important;
   }
   .prose-notes th,
   .prose-notes td {

@@ -158,6 +158,18 @@ async function getSubjectContent(subjectId, options = {}) {
 
   const unitIds = (units || []).map((unit) => unit.id);
 
+  if (unitIds.length === 0) {
+    const empty = {
+      subject,
+      content: emptyContentBuckets(),
+      counts: Object.fromEntries(
+        Object.keys(emptyContentBuckets()).map((k) => [k, 0])
+      ),
+    };
+    cache.set(cacheKey, empty);
+    return empty;
+  }
+
   const { data: contents, error: contentErr } = await supabase
     .from("content")
     .select(
