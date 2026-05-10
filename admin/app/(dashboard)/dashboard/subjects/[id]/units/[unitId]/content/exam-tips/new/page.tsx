@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { TopBar } from "@/components/layout/TopBar";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import JsonContentForm from "@/components/forms/JsonContentForm";
+import { NotesEditor } from "@/components/forms/NotesEditor";
 
 export default function NewExamTipsPage() {
   const params = useParams();
@@ -35,9 +35,12 @@ export default function NewExamTipsPage() {
             <CardTitle>Create Exam Tips</CardTitle>
           </CardHeader>
           <CardContent>
-            <JsonContentForm
+            {/* Exam tips now use the same rich editor as notes — TipTap +
+                PDF auto-formatting. Same shape (data.html) so the web reader
+                renders them with identical typography. */}
+            <NotesEditor
               unitId={unitId}
-              type="exam_tips"
+              noteType="exam_tips"
               onSuccess={() =>
                 router.push(`/dashboard/subjects/${subjectId}/units/${unitId}`)
               }

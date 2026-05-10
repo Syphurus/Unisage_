@@ -265,11 +265,15 @@ export default function ContentPage() {
       />
 
       <div className="px-5 pb-16 md:px-8 lg:px-10 xl:px-14 lg:max-w-[1280px] mx-auto">
-        {(content.type === "long_notes" || content.type === "short_notes") && (
-          <NotesView content={content} />
-        )}
+        {(content.type === "long_notes" ||
+          content.type === "short_notes" ||
+          content.type === "exam_tips") && <NotesView content={content} />}
 
-        {content.type === "exam_tips" && <ExamTipsView content={content} />}
+        {/* exam_tips with no html (legacy structured `tips[]` shape) still
+            falls through to the original list renderer */}
+        {content.type === "exam_tips" &&
+          !((content.data as any)?.html) &&
+          !(content.data as any)?.content && <ExamTipsView content={content} />}
 
         {content.type === "paper_predictor" && (
           <PredictorPaperView content={content} />
@@ -448,6 +452,12 @@ function PredictorPaperView({ content }: { content: Content }) {
     return d || {};
   })();
 
+  // Rich predictions[] shape — the canonical worksheet/PYQ-backed format.
+  // Detected by the presence of a non-empty predictions array.
+  if (Array.isArray(data?.predictions) && data.predictions.length > 0) {
+    return <RichPredictorView data={data} />;
+  }
+
   // Resolve html from any common location.
   const html: string | undefined =
     data?.html ?? data?.predicted_paper?.html ?? data?.paper?.html ?? data?.body;
@@ -604,6 +614,478 @@ function Stat({
       >
         {value}
       </p>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
+// Rich predictor view — canonical worksheet/PYQ-backed shape.
+// Renders the JSON produced by the prediction engine: header meta,
+// confidence stats, exam structure, unit-wise marks forecast, prediction
+// cards (each with steps/formulas/source refs/hinglish tip), worksheets
+// priority map, and exam strategy.
+// ─────────────────────────────────────────────────────────
+function RichPredictorView({ data }: { data: any }) {
+  const cs = data.confidence_summary || {};
+  const es = data.exam_structure_confirmed || {};
+  const sections = es.sections || {};
+  const uw = data.unit_wise_marks_forecast || {};
+  const strat = data.exam_strategy || {};
+  const wpm = data.worksheets_priority_map || {};
+  const sap = data.section_a_complete_prep || {};
+  const preds: any[] = Array.isArray(data.predictions) ? data.predictions : [];
+
+  return (
+    <div className="mt-2 space-y-8">
+      {/* Header */}
+      <header className="rounded-card border border-mint-500/20 bg-[rgb(var(--bg-elev))] p-5 lg:p-6">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 inline-block rounded-full bg-mint-400 animate-pulse-soft" />
+          <span className="text-[10px] font-semibold uppercase tracking-cap text-mint-400">
+            Predicted paper · {data.course_code || ""}
+          </span>
+        </div>
+        <h2 className="mt-2 text-[24px] lg:text-[28px] font-bold tracking-[-0.01em] text-[rgb(var(--fg))]">
+          {data.subject || "Subject"}
+        </h2>
+        <p className="mt-1 text-[12.5px] text-chalk-400">
+          {data.programme || ""}
+          {data.semester ? ` · Sem ${data.semester}` : ""}
+          {data.session ? ` · ${data.session}` : ""}
+        </p>
+        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <KV label="Exam date" value={data.exam_date} />
+          <KV label="Generated" value={data.prediction_generated} />
+          <KV label="Valid until" value={data.prediction_valid_until} />
+          <KV label="College" value={data.college} />
+        </div>
+      </header>
+
+      {/* Confidence stats */}
+      {Object.keys(cs).length > 0 && (
+        <section>
+          <SectionHeader title="Model confidence" meta={cs.methodology} />
+          <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Stat2 label="Expected accuracy" value={cs.expected_accuracy || "—"} tone="mint" />
+            <Stat2 label="Total predictions" value={cs.total_predicted_questions ?? preds.length} />
+            <Stat2 label="High confidence" value={cs.high_confidence_predictions ?? "—"} tone="mint" />
+            <Stat2 label="Medium confidence" value={cs.medium_confidence_predictions ?? "—"} />
+          </div>
+          {cs.overall_accuracy_claim && (
+            <p className="mt-3 text-[12.5px] text-chalk-400">{cs.overall_accuracy_claim}</p>
+          )}
+        </section>
+      )}
+
+      {/* Exam structure */}
+      {Object.keys(sections).length > 0 && (
+        <section>
+          <SectionHeader
+            title="Exam structure"
+            meta={`${es.total_marks ?? "—"} marks · ${es.time ?? "—"}`}
+          />
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+            {Object.entries(sections).map(([k, v]: any) => (
+              <div
+                key={k}
+                className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4"
+              >
+                <p className="caption">{k.replace(/_/g, " ")}</p>
+                <p className="mt-1.5 text-[14px] font-semibold text-[rgb(var(--fg))]">
+                  {v?.pattern || ""}
+                </p>
+                {v?.typical_style && (
+                  <p className="mt-1.5 text-[12px] text-chalk-400 leading-relaxed">
+                    {v.typical_style}
+                  </p>
+                )}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {v?.all_compulsory && <Pill variant="mint">All compulsory</Pill>}
+                  {v?.has_OR && <Pill>Has OR</Pill>}
+                </div>
+              </div>
+            ))}
+          </div>
+          {es.note && (
+            <p className="mt-3 text-[12px] text-chalk-400 italic">{es.note}</p>
+          )}
+        </section>
+      )}
+
+      {/* Unit-wise marks forecast */}
+      {Object.keys(uw).length > 0 && (
+        <section>
+          <SectionHeader title="Unit-wise marks forecast" />
+          <ul className="mt-4 space-y-2.5">
+            {Object.entries(uw).map(([k, v]: any) => {
+              const pct = parseInt(String(v?.percentage || "0"), 10) || 0;
+              const tone = pct >= 30 ? "mint" : pct >= 15 ? "ember" : "flame";
+              return (
+                <li key={k} className="flex items-center gap-3 text-[13px]">
+                  <span className="w-44 lg:w-56 shrink-0 text-chalk-200 truncate">
+                    {k.replace(/_/g, " ")}
+                  </span>
+                  <div className="flex-1">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.05]">
+                      <div
+                        className={
+                          tone === "mint"
+                            ? "h-full bg-mint-400"
+                            : tone === "ember"
+                            ? "h-full bg-ember-400"
+                            : "h-full bg-flame-500"
+                        }
+                        style={{ width: `${Math.max(2, pct)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="w-20 shrink-0 text-right font-semibold text-[rgb(var(--fg))] tabular-nums">
+                    {v?.predicted_marks ?? "—"} m
+                  </span>
+                  <span className="w-12 shrink-0 text-right text-chalk-400 tabular-nums">
+                    {v?.percentage}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* Predictions */}
+      <section>
+        <SectionHeader title="Predictions" meta={`${preds.length} questions ranked by priority`} />
+        <div className="mt-4 space-y-4">
+          {preds.map((p, i) => (
+            <PredictionCard key={p.id || i} pred={p} />
+          ))}
+        </div>
+      </section>
+
+      {/* Section A prep */}
+      {Array.isArray(sap.likely_topics) && sap.likely_topics.length > 0 && (
+        <section>
+          <SectionHeader title="Section A · short questions" meta={sap.description} />
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {sap.likely_topics.map((t: any, i: number) => (
+              <div
+                key={i}
+                className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4"
+              >
+                <p className="text-[13.5px] font-semibold text-[rgb(var(--fg))]">
+                  {t.topic}
+                </p>
+                <p className="mt-1 text-[12px] text-chalk-400">Source: {t.source}</p>
+                {t["2025_precedent"] && (
+                  <p className="mt-1 text-[11.5px] text-mint-400">
+                    PYQ precedent: {t["2025_precedent"]}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Worksheets priority map */}
+      {Object.keys(wpm).length > 0 && (
+        <section>
+          <SectionHeader title="Worksheet priority" />
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {Object.entries(wpm).map(([k, v]: any) => {
+              const tone =
+                v?.priority?.includes("HIGHEST")
+                  ? "mint"
+                  : v?.priority?.includes("HIGH")
+                  ? "ember"
+                  : "flame";
+              return (
+                <div
+                  key={k}
+                  className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[13.5px] font-semibold text-[rgb(var(--fg))]">
+                      {k.replace(/_/g, " ")}
+                    </p>
+                    <Pill
+                      variant={
+                        tone === "mint" ? "mint" : tone === "ember" ? "ember" : "flame"
+                      }
+                    >
+                      {v?.priority}
+                    </Pill>
+                  </div>
+                  {v?.reason && (
+                    <p className="mt-2 text-[12px] text-chalk-400 leading-relaxed">
+                      {v.reason}
+                    </p>
+                  )}
+                  {Array.isArray(v?.must_solve) && v.must_solve.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {v.must_solve.map((q: string) => (
+                        <span
+                          key={q}
+                          className="rounded-pill border border-white/[0.08] px-2 py-0.5 text-[10.5px] font-mono text-chalk-300"
+                        >
+                          {q}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Exam strategy */}
+      {Object.keys(strat).length > 0 && (
+        <section>
+          <SectionHeader title="Exam strategy" />
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {strat.section_c_first && (
+              <StratCard label="Section C first" body={strat.section_c_first} />
+            )}
+            {strat.section_b_order && (
+              <StratCard label="Section B order" body={strat.section_b_order} />
+            )}
+            {strat.section_a_tip && (
+              <StratCard label="Section A tip" body={strat.section_a_tip} />
+            )}
+            {strat.marks_optimization && (
+              <StratCard label="Marks optimization" body={strat.marks_optimization} />
+            )}
+          </div>
+          {strat.time_allocation && (
+            <div className="mt-3 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4">
+              <p className="caption mb-2">Time allocation</p>
+              <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {Object.entries(strat.time_allocation).map(([k, v]: any) => (
+                  <li key={k}>
+                    <p className="text-[10.5px] uppercase tracking-cap text-chalk-500">
+                      {k.replace(/_/g, " ")}
+                    </p>
+                    <p className="mt-0.5 text-[14px] font-semibold text-[rgb(var(--fg))]">
+                      {String(v)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {strat.hinglish_summary && (
+            <div className="mt-3 rounded-card border border-mint-500/20 bg-mint-500/[0.04] p-4">
+              <p className="caption text-mint-400 mb-1.5">Hinglish summary</p>
+              <p className="text-[13px] leading-relaxed text-chalk-200">
+                {strat.hinglish_summary}
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
+// Per-prediction card. Intentionally dense — every field in the JSON
+// surfaces somewhere so the prediction stays auditable.
+function PredictionCard({ pred }: { pred: any }) {
+  const conf = pred.confidence_score ?? 0;
+  const tone = conf >= 90 ? "mint" : conf >= 80 ? "ember" : "flame";
+  const hta = pred.how_to_answer || {};
+  const orv = pred.or_variant;
+
+  return (
+    <article className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <p className="text-[10px] font-mono text-chalk-500">
+            #{String(pred.priority_rank ?? "").padStart(2, "0")} ·{" "}
+            {pred.section ? `Section ${pred.section}` : ""}
+            {pred.unit ? ` · ${pred.unit}` : ""}
+            {pred.co ? ` · ${pred.co}` : ""}
+          </p>
+          {pred.topic && (
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-cap text-chalk-400">
+              {pred.topic}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {pred.marks && (
+            <span className="rounded-pill border border-white/[0.1] px-2.5 py-0.5 text-[11px] font-semibold text-chalk-200">
+              {pred.marks} marks
+            </span>
+          )}
+          <Pill
+            variant={tone === "mint" ? "mint" : tone === "ember" ? "ember" : "flame"}
+          >
+            {conf}% · {pred.confidence_level || ""}
+          </Pill>
+        </div>
+      </div>
+
+      {/* Question */}
+      {pred.predicted_question && (
+        <p className="mt-3 text-[15px] lg:text-[16px] leading-relaxed text-[rgb(var(--fg))] whitespace-pre-wrap">
+          {pred.predicted_question}
+        </p>
+      )}
+
+      {/* Reasoning */}
+      {pred.confidence_reasoning && (
+        <div className="mt-3">
+          <AnnotationBlock label="Why this is likely" tone="mint">
+            {pred.confidence_reasoning}
+          </AnnotationBlock>
+        </div>
+      )}
+
+      {/* Source references */}
+      {Array.isArray(pred.source_references) && pred.source_references.length > 0 && (
+        <div className="mt-3">
+          <p className="caption mb-1.5">Source references</p>
+          <ul className="flex flex-wrap gap-1.5">
+            {pred.source_references.map((s: string, i: number) => (
+              <li
+                key={i}
+                className="rounded-pill border border-white/[0.08] bg-white/[0.02] px-2.5 py-1 text-[11.5px] text-chalk-300"
+              >
+                {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* OR variant */}
+      {orv?.question && (
+        <div className="mt-3 rounded-card border border-ember-400/20 bg-ember-400/[0.04] p-4">
+          <p className="caption text-ember-400 mb-1.5">OR variant</p>
+          <p className="text-[13.5px] leading-relaxed text-chalk-200 whitespace-pre-wrap">
+            {orv.question}
+          </p>
+          {orv.source && (
+            <p className="mt-2 text-[11px] text-chalk-500">Source: {orv.source}</p>
+          )}
+        </div>
+      )}
+
+      {/* How to answer */}
+      {(Array.isArray(hta.steps) && hta.steps.length > 0) ||
+      (Array.isArray(hta.key_formulas) && hta.key_formulas.length > 0) ||
+      hta.time_estimate ? (
+        <div className="mt-3 rounded-card border border-white/[0.06] p-4">
+          <div className="flex items-baseline justify-between gap-2 mb-2">
+            <p className="caption">How to answer</p>
+            {hta.time_estimate && (
+              <p className="text-[11px] font-semibold text-mint-400">
+                {hta.time_estimate}
+              </p>
+            )}
+          </div>
+          {Array.isArray(hta.steps) && hta.steps.length > 0 && (
+            <ol className="space-y-1.5 text-[13px] text-chalk-200 list-decimal pl-4">
+              {hta.steps.map((s: string, i: number) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ol>
+          )}
+          {Array.isArray(hta.key_formulas) && hta.key_formulas.length > 0 && (
+            <div className="mt-3">
+              <p className="caption mb-1.5">Key formulas</p>
+              <ul className="flex flex-wrap gap-1.5">
+                {hta.key_formulas.map((f: string, i: number) => (
+                  <li
+                    key={i}
+                    className="rounded-pill border border-mint-500/20 bg-mint-500/5 px-2.5 py-1 text-[11.5px] font-mono text-mint-400"
+                  >
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {Array.isArray(hta.common_mistakes) && hta.common_mistakes.length > 0 && (
+            <div className="mt-3">
+              <AnnotationBlock label="Common mistakes" tone="flame">
+                <ul className="space-y-0.5 list-disc pl-4">
+                  {hta.common_mistakes.map((m: string, i: number) => (
+                    <li key={i}>{m}</li>
+                  ))}
+                </ul>
+              </AnnotationBlock>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* Specific questions to prepare */}
+      {Array.isArray(pred.specific_questions_to_prepare) &&
+        pred.specific_questions_to_prepare.length > 0 && (
+          <div className="mt-3">
+            <p className="caption mb-1.5">Specific questions to prepare</p>
+            <ul className="space-y-1.5 text-[12.5px] text-chalk-300 list-disc pl-4">
+              {pred.specific_questions_to_prepare.map((q: string, i: number) => (
+                <li key={i}>{q}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+      {/* Hinglish tip */}
+      {pred.hinglish_tip && (
+        <div className="mt-3 rounded-card border border-mint-500/20 bg-mint-500/[0.04] p-4">
+          <p className="caption text-mint-400 mb-1.5">Hinglish tip</p>
+          <p className="text-[13px] leading-relaxed text-chalk-200 whitespace-pre-wrap">
+            {pred.hinglish_tip}
+          </p>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function KV({ label, value }: { label: string; value?: string }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-cap text-chalk-500">{label}</p>
+      <p className="mt-0.5 text-[13px] font-semibold text-[rgb(var(--fg))]">
+        {value || "—"}
+      </p>
+    </div>
+  );
+}
+
+function Stat2({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone?: "mint";
+}) {
+  return (
+    <div className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4">
+      <p className="caption">{label}</p>
+      <p
+        className={`mt-1 text-[20px] font-bold ${tone === "mint" ? "text-mint" : "text-[rgb(var(--fg))]"}`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function StratCard({ label, body }: { label: string; body: string }) {
+  return (
+    <div className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4">
+      <p className="caption mb-1.5">{label}</p>
+      <p className="text-[13px] leading-relaxed text-chalk-200">{body}</p>
     </div>
   );
 }

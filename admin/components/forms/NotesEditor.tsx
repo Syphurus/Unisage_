@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 interface NotesEditorProps {
   subjectId?: string;
   unitId?: string;
-  noteType?: "long_notes" | "short_notes";
+  noteType?: "long_notes" | "short_notes" | "exam_tips";
   initialData?: {
     id?: string;
     title: string;
