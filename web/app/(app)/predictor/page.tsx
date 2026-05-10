@@ -43,17 +43,22 @@ export default function PredictorPage() {
     async (): Promise<Aggregated[]> => {
       const results = await Promise.all(
         subjects.map(async (s) => {
-          const res: any = await subjectsAPI.getContent(s.id);
-          const d = res?.data || res;
-          const list: Content[] = Array.isArray(d?.content)
-            ? d.content
-            : d?.content
-              ? (Object.values(d.content).flat() as Content[])
-              : [];
-          return {
-            subject: s,
-            papers: list.filter((c) => c.type === "paper_predictor"),
-          };
+          const res: any = await subjectsAPI.getContent(s.id).catch(() => null);
+          const d = res?.data ?? res ?? {};
+          // Backend returns content as an object grouped by type:
+          // { content: { paper_predictor: [...], long_notes: [...], ... } }
+          const bucket: Content[] = Array.isArray(d?.content?.paper_predictor)
+            ? d.content.paper_predictor.map((it: any) => ({
+                ...it,
+                type: "paper_predictor" as const,
+                unit: it.unit ?? {
+                  id: "",
+                  title: "",
+                  subject: { id: s.id, name: s.name, code: s.code },
+                },
+              }))
+            : [];
+          return { subject: s, papers: bucket };
         }),
       );
       return results;

@@ -46,18 +46,38 @@ export default function CuratorPage() {
     let alive = true;
     setPoolLoading(true);
     Promise.all(
-      subjects.map((s: Subject) => subjectsAPI.getContent(s.id)),
+      subjects.map((s: Subject) =>
+        subjectsAPI
+          .getContent(s.id)
+          .then((res: any) => ({ subject: s, res }))
+          .catch(() => ({ subject: s, res: null })),
+      ),
     ).then((results) => {
       if (!alive) return;
       const all: Content[] = [];
-      results.forEach((res: any) => {
+      results.forEach(({ subject, res }) => {
         const data = res?.data || res;
-        const items = Array.isArray(data?.content)
-          ? data.content
-          : data?.content
-            ? Object.values(data.content).flat()
-            : [];
-        all.push(...(items as Content[]));
+        const bucket = data?.content || {};
+        // Backend returns content grouped by type — flatten each bucket
+        // and stamp the type back onto items so downstream code works.
+        Object.entries(bucket).forEach(([typeKey, list]) => {
+          if (!Array.isArray(list)) return;
+          list.forEach((it: any) =>
+            all.push({
+              ...it,
+              type: typeKey as any,
+              unit: it.unit ?? {
+                id: "",
+                title: subject.name,
+                subject: {
+                  id: subject.id,
+                  name: subject.name,
+                  code: subject.code,
+                },
+              },
+            }),
+          );
+        });
       });
       setPool(all);
       setPoolLoading(false);
