@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useSubject } from "@/lib/hooks/useSubjects";
 import { useSubjectProgress } from "@/lib/hooks/useProgress";
@@ -20,14 +20,9 @@ import {
   Skeleton,
   SkeletonText,
 } from "@/components/unisage/Skeleton";
-import { UnitsRail } from "@/components/unisage/SubjectHub/UnitsRail";
-import {
-  ContentTabs,
-  ContentTabId,
-  tabMeta,
-} from "@/components/unisage/SubjectHub/ContentTabs";
+import { tabMeta } from "@/components/unisage/SubjectHub/ContentTabs";
 import { ContentList } from "@/components/unisage/SubjectHub/ContentList";
-import { ChevronLeft, Sparkles } from "lucide-react";
+import { ChevronLeft, Sparkles, RefreshCw } from "lucide-react";
 import type { Content } from "@/lib/types";
 import type { ContentByType } from "@/lib/hooks/useSubjectContent";
 
@@ -42,53 +37,22 @@ export default function SubjectHubPage({
   // Bracket time spent on this subject hub with a server-side session row.
   // The hook handles start/end via fetch-keepalive on unload.
   useStudySession(params.id);
-  const { units, byType, isLoading } = useSubjectContent(params.id);
+  const { units, byType, isLoading, mutate } = useSubjectContent(params.id);
 
-  const [activeUnit, setActiveUnit] = useState<string | "all">("all");
-  const [activeTab, setActiveTab] = useState<ContentTabId>("long_notes");
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Pick the first non-empty tab as default once data loads
-  const defaultTab = useMemo<ContentTabId>(() => {
-    const order: ContentTabId[] = [
-      "long_notes",
-      "short_notes",
-      "flashcard",
-      "quiz",
-      "pyqs",
-      "exam_tips",
-      "paper_predictor",
-      "syllabus",
-      "assignments",
-    ];
-    return (
-      (order.find(
-        (t) => byType[t]?.length > 0,
-      ) as ContentTabId) || "long_notes"
-    );
-  }, [byType]);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await mutate();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
-  // If user hasn't picked a tab and current tab has no content, snap to default
-  const effectiveTab: ContentTabId =
-    byType[activeTab]?.length > 0 ? activeTab : defaultTab;
-
-  // Filter by active unit
-  const visibleByType: ContentByType = useMemo(() => {
-    if (activeUnit === "all") return byType;
-    const empty: ContentByType = {
-      long_notes: [],
-      short_notes: [],
-      flashcard: [],
-      quiz: [],
-      paper_predictor: [],
-      exam_tips: [],
-      pyqs: [],
-      syllabus: [],
-      assignments: [],
-    };
-    const u = units.find((x) => x.id === activeUnit);
-    if (!u) return empty;
-    return u.content;
-  }, [activeUnit, byType, units]);
+  // visibleByType is same as byType now (no unit filtering)
+  const visibleByType: ContentByType = byType;
 
   const totalResources = Object.values(byType).flat().length;
   const visibleResources = Object.values(visibleByType).flat().length;
@@ -100,7 +64,7 @@ export default function SubjectHubPage({
       {/* Hero */}
       <PageContainer>
         <header className="pt-6 md:pt-10 lg:pt-14 pb-8 lg:pb-10 border-b border-white/[0.05]">
-          <div className="hidden lg:block mb-4">
+          <div className="hidden lg:block mb-4 flex items-center gap-3">
             <Link
               href="/learn"
               className="inline-flex items-center gap-1.5 text-[12px] text-chalk-400 hover:text-[rgb(var(--fg))] transition-colors"
@@ -108,6 +72,14 @@ export default function SubjectHubPage({
               <ChevronLeft className="h-3.5 w-3.5" />
               All subjects
             </Link>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 text-[12px] text-chalk-400 hover:text-[rgb(var(--fg))] transition-colors disabled:opacity-50"
+              title="Refresh content"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+            </button>
           </div>
           {subjLoading ? (
             <div className="space-y-4">
@@ -134,7 +106,6 @@ export default function SubjectHubPage({
                   <Pill variant="mint">
                     <Sparkles className="h-3 w-3" /> AI workspace
                   </Pill>
-                  <Pill>{units.length} units</Pill>
                   <Pill>{totalResources} resources</Pill>
                 </div>
               </div>
@@ -175,64 +146,52 @@ export default function SubjectHubPage({
       {/* Workspace: sidebar + content */}
       <PageContainer>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 pt-6 lg:pt-8">
-          {/* Units rail */}
-          <aside className="lg:col-span-3 xl:col-span-3">
-            <div className="lg:sticky lg:top-6">
-              {isLoading && units.length === 0 ? (
-                <div className="space-y-2">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <UnitsRail
-                  units={units}
-                  activeUnitId={activeUnit}
-                  onSelect={setActiveUnit}
-                />
-              )}
-              {units.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-white/[0.05]">
-                  <MetaCaption className="mb-2">In view</MetaCaption>
-                  <p className="text-[13px] text-chalk-300">
-                    {visibleResources} resources across{" "}
-                    {Object.values(visibleByType).filter((arr) => arr.length > 0).length}{" "}
-                    types
-                  </p>
-                  <SegmentedProgress
-                    value={
-                      visibleResources && totalResources
-                        ? Math.round((visibleResources / totalResources) * 100)
-                        : 0
-                    }
-                    segments={20}
-                    className="mt-3"
-                  />
-                </div>
-              )}
-            </div>
-          </aside>
+          {/* Units removed per request — content area expanded */}
 
           {/* Tabbed content */}
-          <div className="lg:col-span-9 xl:col-span-9 min-w-0">
-            <ContentTabs
-              active={effectiveTab}
-              onChange={setActiveTab}
-              byType={visibleByType}
-            />
+          <div className="lg:col-span-12 xl:col-span-12 min-w-0">
+            {/* Expanded top bar: All / Long notes / Short notes / Flashcards / Quiz / Exam tips / PYQs / Syllabus / Assignments */}
+            <div className="border-b border-white/[0.06] sticky top-0 z-10 bg-[rgb(var(--bg))]/85 backdrop-blur-md -mx-5 md:-mx-8 lg:-mx-10 xl:-mx-14 px-5 md:px-8 lg:px-10 xl:px-14 overflow-x-auto scrollbar-none">
+              <div className="flex gap-2 items-center py-3">
+                {[
+                  { id: "all", label: "All" },
+                  { id: "long_notes", label: "Long notes" },
+                  { id: "short_notes", label: "Short notes" },
+                  { id: "flashcard", label: "Flashcards" },
+                  { id: "quiz", label: "Quiz" },
+                  { id: "exam_tips", label: "Exam tips" },
+                  { id: "pyqs", label: "PYQs" },
+                  { id: "syllabus", label: "Syllabus" },
+                  { id: "assignments", label: "Assignments" },
+                ].map((t) => {
+                  const isActive = activeTab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveTab(t.id)}
+                      className={`relative inline-flex items-center gap-2 px-4 py-3 text-[13px] font-medium ${isActive ? "text-mint-400" : "text-chalk-300"}`}
+                    >
+                      <span>{t.label}</span>
+                      {isActive && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-mint-400" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="pt-6 lg:pt-8 pb-16">
               <div className="mb-5 flex items-baseline justify-between gap-2">
                 <div>
-                  <p className="caption">
-                    {tabMeta(effectiveTab).sub}
-                  </p>
+                  {(() => {
+                    if (activeTab === "all") return <p className="caption">All content</p>;
+                    const meta = tabMeta(activeTab as any);
+                    return <p className="caption">{meta?.sub || ""}</p>;
+                  })()}
                   <h2 className="mt-1 text-[22px] lg:text-[26px] font-bold tracking-[-0.005em] text-[rgb(var(--fg))]">
-                    {tabMeta(effectiveTab).label}
+                    {activeTab === "all" ? "All" : (tabMeta(activeTab as any)?.label || activeTab)}
                   </h2>
                 </div>
                 <p className="text-[12px] text-chalk-500">
-                  {visibleByType[effectiveTab]?.length ?? 0} item
-                  {visibleByType[effectiveTab]?.length === 1 ? "" : "s"}
+                  {activeTab === "all" ? Object.values(visibleByType).flat().length : (visibleByType[activeTab as any]?.length ?? 0)} item{(activeTab === "all" ? Object.values(visibleByType).flat().length : (visibleByType[activeTab as any]?.length ?? 0)) === 1 ? "" : "s"}
                 </p>
               </div>
 
@@ -244,8 +203,12 @@ export default function SubjectHubPage({
                 </div>
               ) : (
                 <ContentList
-                  type={effectiveTab}
-                  items={visibleByType[effectiveTab] || []}
+                  type={activeTab}
+                  items={
+                    activeTab === "all"
+                      ? Object.values(visibleByType).flat()
+                      : visibleByType[activeTab as any] || []
+                  }
                 />
               )}
             </div>
