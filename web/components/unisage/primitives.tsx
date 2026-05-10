@@ -108,16 +108,18 @@ export function HighlightCard({
   children,
   className,
 }: {
-  caption: ReactNode;
+  caption?: ReactNode;
   dot?: "mint" | "flame" | "ember" | null;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <Card variant="highlight" className={cn("p-4", className)}>
-      <MetaCaption dot={dot} className="mb-2">
-        {caption}
-      </MetaCaption>
+      {caption ? (
+        <MetaCaption dot={dot} className="mb-2">
+          {caption}
+        </MetaCaption>
+      ) : null}
       {children}
     </Card>
   );

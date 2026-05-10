@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useSubjects } from "@/lib/hooks/useSubjects";
-import { useProgress } from "@/lib/hooks/useProgress";
+import { useMySubjectAnalytics } from "@/lib/hooks/useDashboardAnalytics";
 import { useAuth } from "@/lib/hooks/useAuth";
 import {
   PageHeader,
@@ -33,26 +33,25 @@ export default function LearnPage() {
   const { subjects, isLoading } = useSubjects(
     user?.semester ? { year: user.year, semester: user.semester } : undefined,
   );
-  const { progress } = useProgress();
+  // Rollup-backed analytics — same source as the dashboard. Falls back to
+  // pct=0 when a brand-new user has no rollup row yet (rather than showing
+  // a misleading 0/1 = 0% from filtered-out user_progress rows).
+  const { subjects: subjectAnalytics } = useMySubjectAnalytics();
   const [sort, setSort] = useState<SortMode>("urgency");
   const [search, setSearch] = useState("");
 
   const enriched = useMemo(() => {
+    const byId = new Map(subjectAnalytics.map((sa) => [sa.subjectId, sa]));
     return subjects.map((s: Subject) => {
-      const sp = progress.filter(
-        (p: any) => p.subjectId === s.id || p.subject?.id === s.id,
-      );
-      const completed = sp.filter(
-        (p: any) => p.completed || p.percentage >= 100,
-      ).length;
-      const total = Math.max(sp.length, 1);
-      const pct = Math.round((completed / total) * 100);
+      const sa = byId.get(s.id);
+      const pct = Math.round(sa?.completionPct ?? 0);
+      const weaknessScore = sa?.weaknessScore ?? 100; // unstudied = max weakness
       const repeats = Math.floor(8 + (s.credits || 4) * 1.5);
-      const weak = Math.max(0, 4 - Math.floor(pct / 25));
+      const weak = Math.min(4, Math.max(0, Math.round(weaknessScore / 25)));
       const marks = Math.round(60 + pct * 0.4);
-      return { subject: s, pct, repeats, weak, marks };
+      return { subject: s, pct, repeats, weak, marks, weaknessScore };
     });
-  }, [subjects, progress]);
+  }, [subjects, subjectAnalytics]);
 
   const sorted = useMemo(() => {
     let arr = [...enriched];
@@ -64,8 +63,11 @@ export default function LearnPage() {
           r.subject.code.toLowerCase().includes(s),
       );
     }
+    // Urgency: lowest completion first (most behind = most urgent).
     if (sort === "urgency") return arr.sort((a, b) => a.pct - b.pct);
-    if (sort === "weakness") return arr.sort((a, b) => b.weak - a.weak);
+    // Weakness: highest weakness score first.
+    if (sort === "weakness")
+      return arr.sort((a, b) => b.weaknessScore - a.weaknessScore);
     if (sort === "yield") return arr.sort((a, b) => b.marks - a.marks);
     return arr.sort((a, b) => b.repeats - a.repeats);
   }, [enriched, sort, search]);
