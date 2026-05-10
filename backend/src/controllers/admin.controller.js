@@ -37,6 +37,58 @@ const ADMIN_PERMISSION_VALUES = [
   "analytics.view",
 ];
 
+function parseFlexibleJson(raw) {
+  const normalized = String(raw)
+    .trim()
+    .replace(/```(?:json)?/gi, "")
+    .replace(/```/g, "")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'");
+
+  try {
+    return JSON.parse(normalized);
+  } catch {
+    return JSON.parse(normalized.replace(/,\s*([}\]])/g, "$1"));
+  }
+}
+
+function normalizePaperPredictorData(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return input;
+  }
+
+  const data = { ...input };
+
+  if (typeof data.predictions === "string") {
+    try {
+      const parsed = parseFlexibleJson(data.predictions);
+      if (Array.isArray(parsed)) data.predictions = parsed;
+    } catch {
+      // keep original; downstream validation/usage can handle reporting
+    }
+  }
+
+  if (Array.isArray(data.questions) && !Array.isArray(data.predictions)) {
+    data.predictions = data.questions;
+  }
+
+  return data;
+}
+
+function normalizeIncomingContentData(input, type) {
+  let parsed = input;
+
+  if (typeof parsed === "string") {
+    parsed = parseFlexibleJson(parsed);
+  }
+
+  if (type === "paper_predictor") {
+    return normalizePaperPredictorData(parsed);
+  }
+
+  return parsed;
+}
+
 function sanitizePermissions(value) {
   const permissions = normalizePermissions(value);
   return permissions.filter((permission) =>
@@ -572,9 +624,9 @@ async function createContent(req, res, next) {
     } = req.body;
 
     let parsedContentData = contentData;
-    if (typeof parsedContentData === "string") {
+    if (parsedContentData !== undefined) {
       try {
-        parsedContentData = JSON.parse(parsedContentData);
+        parsedContentData = normalizeIncomingContentData(parsedContentData, type);
       } catch {
         throw new ValidationError("Invalid content data JSON");
       }
@@ -677,7 +729,13 @@ async function updateContent(req, res, next) {
     const updates = {};
 
     if (req.body.title !== undefined) updates.title = req.body.title;
-    if (req.body.data !== undefined) updates.data = req.body.data;
+    if (req.body.data !== undefined) {
+      try {
+        updates.data = normalizeIncomingContentData(req.body.data, existing.type);
+      } catch {
+        throw new ValidationError("Invalid content data JSON");
+      }
+    }
     if (req.body.orderIndex !== undefined)
       updates.order_index = req.body.orderIndex;
     if (req.body.isPublished !== undefined)
