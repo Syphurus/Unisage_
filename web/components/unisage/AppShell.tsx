@@ -26,9 +26,7 @@ const NAV: { href: string; label: string; Icon: any; group?: "main" | "more" }[]
   { href: "/dashboard", label: "Dashboard", Icon: LayoutGrid },
   { href: "/learn", label: "Learn", Icon: BookOpen },
   { href: "/predictor", label: "Predictor", Icon: Activity },
-  { href: "/curator", label: "Curator", Icon: InfinityIcon },
   { href: "/analytics", label: "Analytics", Icon: BarChart3, group: "more" },
-  { href: "/assignments", label: "Assignments", Icon: ClipboardList, group: "more" },
   { href: "/you", label: "You", Icon: User, group: "more" },
 ];
 
@@ -36,7 +34,7 @@ const MOBILE_TABS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutGrid },
   { href: "/learn", label: "Learn", Icon: BookOpen },
   { href: "/predictor", label: "Predictor", Icon: Activity },
-  { href: "/curator", label: "Curator", Icon: InfinityIcon },
+  { href: "/analytics", label: "Analytics", Icon: BarChart3 },
   { href: "/you", label: "You", Icon: User },
 ];
 
