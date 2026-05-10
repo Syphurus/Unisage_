@@ -205,6 +205,19 @@ export function FlashcardViewer({
   const back = data?.back || "";
   const decay = Math.min(95, 30 + idx * 4);
 
+  // Lightweight markdown → HTML for flashcard answers. Admins write content
+  // like **FORMULA:** and *italics*; rendering them as literal asterisks
+  // breaks trust on first reveal. Inline-only — no full markdown engine.
+  const renderInlineMd = (s: string) =>
+    s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\n/g, "<br/>");
+
   return (
     <div className="min-h-screen pb-32 mx-auto w-full lg:max-w-2xl">
       {/* Header */}
@@ -251,14 +264,16 @@ export function FlashcardViewer({
             <p className="caption">{revealed ? "ANSWER" : "QUESTION"}</p>
             <p
               className={cn(
-                "leading-snug",
+                "leading-snug whitespace-pre-wrap",
                 revealed
                   ? "text-[18px] text-[rgb(var(--fg))]"
                   : "text-[22px] font-semibold text-[rgb(var(--fg))]",
               )}
-            >
-              {revealed ? back : front}
-            </p>
+              dangerouslySetInnerHTML={{
+                __html: renderInlineMd(revealed ? back : front),
+              }}
+            />
+
           </div>
 
           <div className="mt-2 flex items-center justify-between gap-3 pt-4 border-t border-white/[0.05]">
@@ -294,9 +309,7 @@ export function FlashcardViewer({
                 onClick={() => rate("solid")}
                 className="rounded-pill border border-mint-500/30 bg-mint-500/10 px-3 py-2.5 text-[13px] font-semibold text-mint-400"
               >
-                <span className="inline-flex items-center gap-1">
-                  <Check className="h-3 w-3" /> Solid
-                </span>
+                Solid
               </button>
             </div>
           </div>

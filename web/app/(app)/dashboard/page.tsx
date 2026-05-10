@@ -184,34 +184,51 @@ export default function DashboardPage() {
           </div>
           <div className="lg:col-span-1">
             {continueRevision ? (
-              <Link
-                href={`/subjects/${continueRevision.subject.id}`}
-                className="group flex flex-col h-full rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 transition-colors hover:bg-[rgb(var(--bg-subtle))]"
-              >
-                <MetaCaption>Continue revision · {continueRevision.pct}%</MetaCaption>
-                <div className="mt-4 flex items-center gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-mint-500/10 text-mint-400">
-                    <Layers className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-cap text-chalk-500">
-                      {continueRevision.subject.code}
-                    </p>
-                    <p className="mt-0.5 text-[15px] font-semibold text-[rgb(var(--fg))] truncate">
-                      {continueRevision.subject.name}
-                    </p>
-                  </div>
-                </div>
-                <SegmentedProgress
-                  value={continueRevision.pct}
-                  segments={24}
-                  className="mt-5"
-                />
-                <span className="mt-auto pt-5 text-[12px] text-chalk-400 inline-flex items-center gap-1.5">
-                  Resume{" "}
-                  <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-                </span>
-              </Link>
+              (() => {
+                const fresh = continueRevision.pct === 0;
+                return (
+                  <Link
+                    href={`/subjects/${continueRevision.subject.id}`}
+                    className="group flex flex-col h-full rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 transition-colors hover:bg-[rgb(var(--bg-subtle))]"
+                  >
+                    <MetaCaption>
+                      {fresh
+                        ? "Start here · highest priority"
+                        : `Continue revision · ${continueRevision.pct}%`}
+                    </MetaCaption>
+                    <div className="mt-4 flex items-center gap-3">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-mint-500/10 text-mint-400">
+                        <Layers className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-cap text-chalk-500">
+                          {continueRevision.subject.code}
+                        </p>
+                        <p className="mt-0.5 text-[15px] font-semibold text-[rgb(var(--fg))] truncate">
+                          {continueRevision.subject.name}
+                        </p>
+                      </div>
+                    </div>
+                    {fresh ? (
+                      <p className="mt-5 text-[12.5px] leading-relaxed text-chalk-400">
+                        Not started yet. One tap opens the subject hub —
+                        flashcards, notes, and predicted papers are all
+                        there.
+                      </p>
+                    ) : (
+                      <SegmentedProgress
+                        value={continueRevision.pct}
+                        segments={24}
+                        className="mt-5"
+                      />
+                    )}
+                    <span className="mt-auto pt-5 text-[12px] text-mint-400 inline-flex items-center gap-1.5 font-semibold">
+                      {fresh ? "Begin" : "Resume"}{" "}
+                      <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                    </span>
+                  </Link>
+                );
+              })()
             ) : (
               <SkeletonCard className="h-full" />
             )}
@@ -235,10 +252,16 @@ export default function DashboardPage() {
               </p>
             ) : (
               ranked.slice(0, 6).map((r, i) => {
+                const fresh = r.pct === 0 && r.activeMinutes === 0;
                 const tone =
                   r.pct >= 80 ? "mint" : r.pct >= 50 ? "ember" : "flame";
-                const status =
-                  tone === "mint" ? "READY" : tone === "ember" ? "WARM" : "HOT";
+                const status = fresh
+                  ? "BEGIN"
+                  : tone === "mint"
+                    ? "READY"
+                    : tone === "ember"
+                      ? "WARM"
+                      : "HOT";
                 return (
                   <Link
                     key={r.subject.id}
@@ -268,21 +291,29 @@ export default function DashboardPage() {
                       {r.subject.name}
                     </h3>
                     <div className="mt-4 flex items-end justify-between gap-3">
-                      <SegmentedProgress
-                        value={r.pct}
-                        tone={tone}
-                        className="flex-1"
-                      />
+                      {fresh ? (
+                        <span className="flex-1 text-[12.5px] text-chalk-400">
+                          Not started yet
+                        </span>
+                      ) : (
+                        <SegmentedProgress
+                          value={r.pct}
+                          tone={tone}
+                          className="flex-1"
+                        />
+                      )}
                       <span
-                        className={`text-[16px] font-bold ${
-                          tone === "mint"
-                            ? "text-mint"
-                            : tone === "ember"
-                              ? "text-ember-400"
-                              : "text-flame-500"
+                        className={`text-[14px] font-bold ${
+                          fresh
+                            ? "text-mint-400"
+                            : tone === "mint"
+                              ? "text-mint"
+                              : tone === "ember"
+                                ? "text-ember-400"
+                                : "text-flame-500"
                         }`}
                       >
-                        {r.pct}%
+                        {fresh ? "Begin →" : `${r.pct}%`}
                       </span>
                     </div>
                   </Link>
@@ -302,7 +333,7 @@ export default function DashboardPage() {
               { href: "/learn", Icon: Repeat, label: "Recall Cycles", sub: "Spaced repetition" },
               { href: "/learn", Icon: GraduationCap, label: "Retrieval Lab", sub: "Timed MCQ drills" },
               { href: "/predictor", Icon: FileText, label: "PYQ", sub: "Past paper clusters" },
-              { href: "/curator", Icon: ArrowRight, label: "Exam tactics", sub: "12 plays" },
+              { href: "/learn", Icon: ArrowRight, label: "Exam tactics", sub: "Strategies & shortcuts" },
             ].map(({ href, Icon, label, sub }) => (
               <Link
                 key={label}
@@ -343,28 +374,38 @@ export default function DashboardPage() {
         </Section>
       )}
 
-      {/* Today */}
-      <Section density="default">
-        <PageContainer>
-          <SectionHeader title="Today" />
-          <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
-            <StatTile value={`${stats?.currentStreak ?? 0}d`} label="Streak" />
-            <StatTile
-              value={`${Math.floor((stats?.totalStudyMinutes ?? 0) / 60)}h ${(stats?.totalStudyMinutes ?? 0) % 60}m`}
-              label="Time studied"
-            />
-            <StatTile
-              value={`${Math.round(stats?.averageQuizScore ?? 0)}%`}
-              label="Recall"
-              tone="mint"
-            />
-            <StatTile
-              value={`${stats?.completedContent ?? 0}`}
-              label="Done"
-            />
-          </div>
-        </PageContainer>
-      </Section>
+      {/* Today — only render once there is meaningful data. A row of zeros
+          on first load tells students they're behind before they begin;
+          full numbers live on /analytics regardless. */}
+      {(stats?.totalStudyMinutes ?? 0) > 0 ||
+      (stats?.currentStreak ?? 0) > 0 ||
+      (stats?.completedContent ?? 0) > 0 ||
+      (stats?.quizzesAttempted ?? 0) > 0 ? (
+        <Section density="default">
+          <PageContainer>
+            <SectionHeader title="Today" />
+            <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
+              <StatTile
+                value={`${stats?.currentStreak ?? 0}d`}
+                label="Streak"
+              />
+              <StatTile
+                value={`${Math.floor((stats?.totalStudyMinutes ?? 0) / 60)}h ${(stats?.totalStudyMinutes ?? 0) % 60}m`}
+                label="Time studied"
+              />
+              <StatTile
+                value={`${Math.round(stats?.averageQuizScore ?? 0)}%`}
+                label="Recall"
+                tone="mint"
+              />
+              <StatTile
+                value={`${stats?.completedContent ?? 0}`}
+                label="Done"
+              />
+            </div>
+          </PageContainer>
+        </Section>
+      ) : null}
     </div>
   );
 }
