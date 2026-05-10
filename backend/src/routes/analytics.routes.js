@@ -16,6 +16,7 @@ const analyticsController = require("../controllers/analytics.controller");
 const authMiddleware = require("../middleware/auth");
 const validate = require("../middleware/validation");
 const validators = require("../utils/validators");
+const { requireEntitlement } = require("../modules/entitlements/entitlement.middleware");
 
 const router = Router();
 
@@ -69,8 +70,12 @@ router.post(
   analyticsController.events
 );
 
-// Reads
-router.get("/me", analyticsController.getMyDashboard);
-router.get("/me/subjects", analyticsController.getMySubjectProgress);
+// Reads — premium ('analysis' scope). Gate is server-authoritative.
+router.get("/me", requireEntitlement("analysis"), analyticsController.getMyDashboard);
+router.get(
+  "/me/subjects",
+  requireEntitlement("analysis"),
+  analyticsController.getMySubjectProgress
+);
 
 module.exports = router;

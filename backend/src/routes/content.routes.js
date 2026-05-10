@@ -11,8 +11,14 @@ const { Router } = require("express");
 const contentController = require("../controllers/content.controller");
 const validate = require("../middleware/validation");
 const validators = require("../utils/validators");
+const optionalAuth = require("../middleware/optionalAuth");
+const { attachEntitlements } = require("../modules/entitlements/entitlement.middleware");
 
 const router = Router();
+
+// Attach user + entitlement state for premium gating on paper_predictor content.
+router.use(optionalAuth);
+router.use(attachEntitlements(["predictor"]));
 
 // NOTE: The query-based route must come before the :id param route
 // to avoid treating "?type=quiz" as an :id.

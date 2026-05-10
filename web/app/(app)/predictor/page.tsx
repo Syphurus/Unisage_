@@ -22,6 +22,7 @@ import {
   SkeletonText,
 } from "@/components/unisage/Skeleton";
 import { ArrowRight, Search, Sparkles, AlertCircle } from "lucide-react";
+import { PaywallGate } from "@/components/billing/PaywallGate";
 
 type Aggregated = {
   subject: Subject;
@@ -29,6 +30,14 @@ type Aggregated = {
 };
 
 export default function PredictorPage() {
+  return (
+    <PaywallGate scope="predictor">
+      <PredictorPageInner />
+    </PaywallGate>
+  );
+}
+
+function PredictorPageInner() {
   const { user } = useAuth();
   const { subjects, isLoading: subjLoading } = useSubjects(
     user?.semester ? { year: user.year, semester: user.semester } : undefined,

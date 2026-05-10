@@ -24,12 +24,24 @@ import {
   useDashboardStats,
   useMySubjectAnalytics,
 } from "@/lib/hooks/useDashboardAnalytics";
+import { PaywallGate } from "@/components/billing/PaywallGate";
 
 /**
  * Real analytics — sourced from the rollup tables maintained by pg_cron.
  * Replaces the prior page that ran on speculative numbers / hand-drawn SVG.
+ *
+ * Wrapped in PaywallGate so unentitled users see the upgrade UI instead of
+ * a broken page (the underlying /api/analytics/me endpoint returns 402).
  */
 export default function AnalyticsPage() {
+  return (
+    <PaywallGate scope="analysis">
+      <AnalyticsPageInner />
+    </PaywallGate>
+  );
+}
+
+function AnalyticsPageInner() {
   const { stats } = useDashboardStats();
   const { subjects: subjectAnalytics } = useMySubjectAnalytics();
 
