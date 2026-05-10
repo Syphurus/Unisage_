@@ -64,11 +64,25 @@ async function getProgress(req, res, next) {
 /**
  * GET /api/progress/subject/:subjectId
  * Get progress for a specific subject (all content across all units).
+ *
+ * Phase-2: prefer the subject_progress rollup for the headline numbers
+ * (totalContent, completedContent, percentage) — that's an indexed
+ * point-read instead of three queries plus client-side math. The detailed
+ * per-content `progress` array still comes from a live query because the
+ * UI relies on per-content state (timeSpent, completed_at).
  */
 async function getSubjectProgress(req, res, next) {
   try {
     const userId = req.user.id;
     const { subjectId } = req.params;
+
+    // 1. Try the rollup first.
+    const { data: rollup } = await supabase
+      .from("subject_progress")
+      .select("total_content, completed_content, completion_pct, weakness_score, last_studied_at")
+      .eq("user_id", userId)
+      .eq("subject_id", subjectId)
+      .maybeSingle();
 
     // Get all units for this subject
     const { data: units, error: unitsErr } = await supabase
@@ -114,15 +128,28 @@ async function getSubjectProgress(req, res, next) {
 
     const completedCount = (progress || []).filter((p) => p.completed).length;
 
+    // Live values (always correct, recomputed every request).
+    const liveTotal = contentIds.length;
+    const liveCompleted = completedCount;
+    const livePercentage =
+      liveTotal > 0 ? Math.round((liveCompleted / liveTotal) * 100) : 0;
+
+    // Headline numbers prefer the rollup ONLY if it exists AND its content
+    // count matches what's currently published — otherwise the rollup is
+    // stale relative to admin content edits and we'd show wrong totals.
+    const useRollup =
+      rollup &&
+      typeof rollup.total_content === "number" &&
+      rollup.total_content === liveTotal;
+
     res.json({
       success: true,
       data: {
-        totalContent: contentIds.length,
-        completedContent: completedCount,
-        percentage:
-          contentIds.length > 0
-            ? Math.round((completedCount / contentIds.length) * 100)
-            : 0,
+        totalContent: useRollup ? rollup.total_content : liveTotal,
+        completedContent: useRollup ? rollup.completed_content : liveCompleted,
+        percentage: useRollup ? rollup.completion_pct : livePercentage,
+        weaknessScore: rollup?.weakness_score ?? null,
+        lastStudiedAt: rollup?.last_studied_at ?? null,
         progress: (progress || []).map((p) => ({
           id: p.id,
           contentId: p.content_id,

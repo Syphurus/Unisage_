@@ -1,16 +1,43 @@
 /**
- * @fileoverview Analytics service — aggregates platform-wide statistics for admin dashboard.
+ * @fileoverview Analytics service — platform + per-user stats.
+ *
+ * Phase-2 migration: this module now prefers the rollup tables maintained
+ * by pg_cron (see analytics.read.service.js). The "live" implementations
+ * below remain as the fallback path used when rollups are absent (brand-new
+ * users, before-first-cron-tick, or rollup query failures).
+ *
+ * Public API and response shapes are unchanged so the existing callers
+ * (sessions.controller, admin.controller) keep working without changes.
  */
 
 const { supabase } = require("../config/database");
 const logger = require("../utils/logger");
+const readService = require("./analytics.read.service");
 
 /**
  * Compute platform-wide analytics.
+ * Tries the rollup table first; falls back to live aggregation if empty.
  *
- * @returns {Promise<Object>} Analytics data
+ * @returns {Promise<Object>} Analytics data (unchanged shape)
  */
 async function getPlatformAnalytics() {
+  try {
+    return await readService.getPlatformDailyStats();
+  } catch (err) {
+    logger.warn("platform rollup unavailable, falling back live", {
+      error: err.message,
+    });
+    return _legacyGetPlatformAnalytics();
+  }
+}
+
+/**
+ * Live fallback that retains the original full-scan implementation.
+ * Used when platform_daily_stats is empty (e.g. before first cron run).
+ *
+ * @private
+ */
+async function _legacyGetPlatformAnalytics() {
   try {
     // Run all queries in parallel for performance
     const [
@@ -98,11 +125,49 @@ async function getPlatformAnalytics() {
 
 /**
  * Get study statistics for a specific user.
+ * Prefers rollup-backed reads; falls back to live aggregation.
  *
  * @param {string} userId
  * @returns {Promise<Object>}
  */
 async function getUserStudyStats(userId) {
+  try {
+    const stats = await readService.getUserDashboardStats(userId);
+    // Map back to the legacy shape so existing /sessions/stats consumers
+    // continue to work. New fields (longestStreak, weakSubjectIds, timeline)
+    // are additive — old clients ignore them.
+    return {
+      totalStudyMinutes: stats.totalStudyMinutes,
+      totalSessions: stats.totalSessions,
+      sessionsThisWeek: stats.sessionsThisWeek,
+      completedContent: stats.completedContent,
+      quizzesAttempted: stats.quizzesAttempted,
+      averageQuizScore: stats.averageQuizScore,
+      currentStreak: stats.currentStreak,
+      longestStreak: stats.longestStreak,
+      lastActiveDay: stats.lastActiveDay,
+      weeklyActivity: stats.weeklyActivity,
+      weakSubjectIds: stats.weakSubjectIds,
+      timeline: stats.timeline,
+    };
+  } catch (err) {
+    logger.warn("user rollup unavailable, falling back live", {
+      userId,
+      error: err.message,
+    });
+    return _legacyGetUserStudyStats(userId);
+  }
+}
+
+/**
+ * Original live computation. Kept as a fallback for the rollup-backed
+ * path — exported as `_legacyGetUserStudyStats` so the read service can
+ * delegate without circular issues.
+ *
+ * @private
+ * @param {string} userId
+ */
+async function _legacyGetUserStudyStats(userId) {
   const [sessionsResult, progressResult, quizResult, activityResult] = await Promise.all([
     supabase
       .from("study_sessions")
@@ -209,4 +274,10 @@ async function getUserStudyStats(userId) {
   };
 }
 
-module.exports = { getPlatformAnalytics, getUserStudyStats };
+module.exports = {
+  getPlatformAnalytics,
+  getUserStudyStats,
+  // Internal — used by analytics.read.service for fallback paths
+  _legacyGetPlatformAnalytics,
+  _legacyGetUserStudyStats,
+};

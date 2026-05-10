@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -14,6 +14,7 @@ import {
 } from "@/components/unisage/primitives";
 import type { Content } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { flashcardsAPI } from "@/lib/api";
 
 interface FlashcardViewerProps {
   flashcards: Content[];
@@ -21,6 +22,19 @@ interface FlashcardViewerProps {
   backHref?: string;
   title?: string;
   subjectCode?: string;
+}
+
+// Cards passed in are ALREADY expanded by the page (each prop card is one
+// flashcard with its own synthetic id of `${parentContentId}-${idx}`). We
+// derive the parent contentId + per-card index by parsing the suffix off
+// the synthetic id — that's the contract used by expandFlashcards on the
+// content page.
+function parseSyntheticCard(id: string): { parentId: string; cardIndex: number } | null {
+  const m = id.match(/^(.+)-(\d+)$/);
+  if (!m) return null;
+  const cardIndex = Number.parseInt(m[2], 10);
+  if (!Number.isFinite(cardIndex)) return null;
+  return { parentId: m[1], cardIndex };
 }
 
 export function FlashcardViewer({
@@ -38,6 +52,14 @@ export function FlashcardViewer({
   const [forgot, setForgot] = useState<Set<string>>(new Set());
   const [done, setDone] = useState(false);
 
+  // Per-card timing + ordered rating list — the payload we POST when the
+  // session ends. Refs so updates don't trigger re-renders.
+  const cardShownAtRef = useRef<number>(0);
+  const reviewBatchRef = useRef<
+    Map<string, { cardIndex: number; rating: "forgot" | "shaky" | "confident"; responseMs: number }[]>
+  >(new Map());
+  const persistedRef = useRef(false);
+
   useEffect(() => {
     if (flashcards.length > 0) {
       setCards(flashcards);
@@ -47,25 +69,78 @@ export function FlashcardViewer({
       setShaky(new Set());
       setForgot(new Set());
       setDone(false);
+      cardShownAtRef.current = Date.now();
+      reviewBatchRef.current = new Map();
+      persistedRef.current = false;
     }
   }, [flashcards]);
 
   const card = cards[idx];
 
+  // Reset the timer each time a new card is shown.
+  useEffect(() => {
+    cardShownAtRef.current = Date.now();
+  }, [idx]);
+
+  const persistReviews = useCallback(() => {
+    if (persistedRef.current) return;
+    persistedRef.current = true;
+    // Group by parent content id (a deck can be split across multiple
+    // content rows when the unit holds several flashcard decks).
+    for (const [parentId, batch] of reviewBatchRef.current.entries()) {
+      if (batch.length === 0) continue;
+      // best-effort — analytics never blocks UX
+      flashcardsAPI.submitReviews(parentId, batch).catch(() => {});
+    }
+    reviewBatchRef.current = new Map();
+  }, []);
+
   const goNext = useCallback(() => {
     if (idx >= cards.length - 1) {
       setDone(true);
+      // Persist on session completion. This runs before the user clicks
+      // "Run cycle again" / "Back to subject" so server has the data
+      // regardless of where they go next.
+      persistReviews();
     } else {
       setIdx((i) => i + 1);
       setRevealed(false);
     }
-  }, [idx, cards.length]);
+  }, [idx, cards.length, persistReviews]);
+
+  // Also flush on unmount or page hide (covers tab close mid-session).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onHide = () => persistReviews();
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("beforeunload", onHide);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("beforeunload", onHide);
+      persistReviews();
+    };
+  }, [persistReviews]);
+
+  const recordReview = (rating: "forgot" | "shaky" | "confident") => {
+    if (!card) return;
+    const responseMs = Math.max(0, Date.now() - cardShownAtRef.current);
+    const parsed = parseSyntheticCard(card.id);
+    const parentId = parsed?.parentId || card.id;
+    const cardIndex = parsed?.cardIndex ?? 0;
+
+    const batch = reviewBatchRef.current.get(parentId) || [];
+    batch.push({ cardIndex, rating, responseMs });
+    reviewBatchRef.current.set(parentId, batch);
+  };
 
   const rate = (rating: "solid" | "shaky" | "forgot") => {
     if (!card) return;
     if (rating === "solid") setConfident((s) => new Set(s).add(card.id));
     if (rating === "shaky") setShaky((s) => new Set(s).add(card.id));
     if (rating === "forgot") setForgot((s) => new Set(s).add(card.id));
+    // Persist the decision into the batch (UI-side rating "solid" maps to
+    // the server's "confident" canonical value).
+    recordReview(rating === "solid" ? "confident" : rating);
     goNext();
   };
 
@@ -76,6 +151,9 @@ export function FlashcardViewer({
     setShaky(new Set());
     setForgot(new Set());
     setDone(false);
+    cardShownAtRef.current = Date.now();
+    reviewBatchRef.current = new Map();
+    persistedRef.current = false;
   };
 
   const onBack = () => {

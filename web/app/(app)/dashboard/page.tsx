@@ -10,6 +10,10 @@ import {
   useQuizAttempts,
 } from "@/lib/hooks/useProgress";
 import {
+  useDashboardStats,
+  useMySubjectAnalytics,
+} from "@/lib/hooks/useDashboardAnalytics";
+import {
   PageHeader,
   MobileTopBar,
 } from "@/components/unisage/AppShell";
@@ -48,26 +52,43 @@ export default function DashboardPage() {
     user?.semester ? { year: user.year, semester: user.semester } : undefined,
   );
   const { progress } = useProgress();
-  const { stats } = useSessionStats();
+  const { stats: legacyStats } = useSessionStats();
   const { attempts } = useQuizAttempts();
+  const { stats: dashStats } = useDashboardStats();
+  const { subjects: subjectAnalytics } = useMySubjectAnalytics();
   const [activeMode, setActiveMode] = useState("crash");
 
-  const subjectReadiness = useMemo(() => {
-    return subjects.map((s: Subject) => {
-      const sp = progress.filter(
-        (p: any) => p.subjectId === s.id || p.subject?.id === s.id,
-      );
-      const completed = sp.filter(
-        (p: any) => p.completed || p.percentage >= 100,
-      ).length;
-      const total = Math.max(sp.length, 1);
-      const pct = Math.round((completed / total) * 100);
-      return { subject: s, pct };
-    });
-  }, [subjects, progress]);
+  // Source of truth: rollup-backed analytics (subject_progress). Falls back
+  // to live legacy stats when the rollup is empty.
+  const stats = dashStats || legacyStats;
 
-  const ranked = [...subjectReadiness].sort((a, b) => b.pct - a.pct);
-  const continueRevision = ranked.find((r) => r.pct < 100);
+  // Build a unified, sorted list of subjects with real completion + weakness.
+  // For each enrolled subject, look up its rollup row by id; if the rollup
+  // doesn't have a row yet (brand-new user), the subject still appears with
+  // pct=0 so the UI doesn't lose it.
+  const ranked = useMemo(() => {
+    const byId = new Map(subjectAnalytics.map((sa) => [sa.subjectId, sa]));
+    const merged = subjects.map((s: Subject) => {
+      const sa = byId.get(s.id);
+      return {
+        subject: s,
+        pct: sa?.completionPct ?? 0,
+        weakness: sa?.weaknessScore ?? 100, // unstudied → maximum weakness
+        avgQuizPct: sa?.avgQuizPct ?? null,
+        activeMinutes: sa?.activeMinutes ?? 0,
+      };
+    });
+    // High probability = subjects ranked by weakness DESCENDING (most-needed
+    // study first). This is the "what should I study?" answer.
+    return merged.sort((a, b) => b.weakness - a.weakness);
+  }, [subjects, subjectAnalytics]);
+
+  // "Continue revision" = highest-weakness subject the user has actually
+  // touched (so we don't suggest something they've never opened).
+  const continueRevision =
+    ranked.find((r) => r.activeMinutes > 0 && r.pct < 100) ??
+    ranked.find((r) => r.pct < 100);
+
   const firstName = (user?.fullName || "Friend").split(" ")[0];
   const totalSubjects = subjects.length;
   const weakOnes = ranked.filter((r) => r.pct < 50);
@@ -329,8 +350,8 @@ export default function DashboardPage() {
           <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
             <StatTile value={`${stats?.currentStreak ?? 0}d`} label="Streak" />
             <StatTile
-              value={`${Math.round((stats?.totalStudyMinutes ?? 0) / Math.max(stats?.totalSessions ?? 1, 1))}m`}
-              label="Avg session"
+              value={`${Math.floor((stats?.totalStudyMinutes ?? 0) / 60)}h ${(stats?.totalStudyMinutes ?? 0) % 60}m`}
+              label="Time studied"
             />
             <StatTile
               value={`${Math.round(stats?.averageQuizScore ?? 0)}%`}

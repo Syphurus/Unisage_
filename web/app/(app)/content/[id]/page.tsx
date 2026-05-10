@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { NotesViewerWithTracking } from "@/components/content/NotesViewer";
+import { useReadingTracker } from "@/lib/hooks/useReadingTracker";
+import { useStudySession } from "@/lib/hooks/useStudySession";
 import HtmlContent from "@/components/content/HtmlContent";
 import { FlashcardViewer } from "@/components/content/FlashcardViewer";
 import { QuizViewer } from "@/components/content/QuizViewer";
@@ -189,6 +190,11 @@ export default function ContentPage() {
   const unitId = content?.unit?.id || content?.unit_id || "";
   const { contents: unitContents } = useUnitContent(unitId);
 
+  // Subject-level session lifecycle. Independent of useReadingTracker
+  // (which is per-content). Session attribution lets the rollup credit
+  // time to a subject even if the user opens many pieces of content.
+  useStudySession(content?.unit?.subject?.id || null);
+
   useEffect(() => {
     if (content && unitContents && unitContents.length > 0) {
       const sameType = unitContents.filter((c) => c.type === content.type);
@@ -283,8 +289,38 @@ export default function ContentPage() {
 
 // ─────────────────────────────────────────────────────────
 // Notes (long + short)
+// Active-time tracking: useReadingTracker pauses on tab hidden / 60s idle,
+// heartbeats every 30s, flushes on unload. Replaces the prior dead 15s
+// timer-based "tracker" that inflated time for backgrounded tabs.
 // ─────────────────────────────────────────────────────────
 function NotesView({ content }: { content: Content }) {
+  useReadingTracker({
+    contentId: content.id,
+    subjectId: content.unit?.subject?.id || null,
+    getViewState: () => {
+      if (typeof window === "undefined") return {};
+      const doc = document.documentElement;
+      const scrollable = Math.max(1, doc.scrollHeight - window.innerHeight);
+      const scrollPct = Math.min(
+        100,
+        Math.max(0, Math.round((window.scrollY / scrollable) * 100))
+      );
+      const sections: string[] = [];
+      try {
+        const headings = document.querySelectorAll("[data-rv-heading]");
+        headings.forEach((h) => {
+          const rect = (h as HTMLElement).getBoundingClientRect();
+          if (rect.top < window.innerHeight && rect.bottom > 0 && (h as HTMLElement).id) {
+            sections.push((h as HTMLElement).id);
+          }
+        });
+      } catch {
+        // best-effort
+      }
+      return { maxScrollPct: scrollPct, sectionsViewed: sections };
+    },
+  });
+
   const data = content.data as any;
   const htmlRaw: string | undefined = data?.html;
   const text: string | undefined = data?.content;
@@ -401,8 +437,20 @@ function ExamTipsView({ content }: { content: Content }) {
 // Predictor paper view
 // ─────────────────────────────────────────────────────────
 function PredictorPaperView({ content }: { content: Content }) {
-  const data = content.data as any;
-  const html: string | undefined = data?.html;
+  // The admin can store paper predictor JSON in many shapes. Walk the data
+  // and pluck out (sections[], meta, html) from whichever wrapper it lives
+  // under. Falls back gracefully if nothing matches.
+  const data = (() => {
+    let d: any = content.data;
+    if (typeof d === "string") {
+      try { d = JSON.parse(d); } catch { d = {}; }
+    }
+    return d || {};
+  })();
+
+  // Resolve html from any common location.
+  const html: string | undefined =
+    data?.html ?? data?.predicted_paper?.html ?? data?.paper?.html ?? data?.body;
 
   if (html) {
     return (
@@ -412,8 +460,53 @@ function PredictorPaperView({ content }: { content: Content }) {
     );
   }
 
-  const sections: any[] = Array.isArray(data?.sections) ? data.sections : [];
-  const meta = data?.meta || {};
+  // Resolve sections[] from any common nesting; tolerate alternate keys.
+  const sectionsRaw: any[] =
+    (Array.isArray(data?.sections) && data.sections) ||
+    (Array.isArray(data?.predicted_paper?.sections) && data.predicted_paper.sections) ||
+    (Array.isArray(data?.paper?.sections) && data.paper.sections) ||
+    (Array.isArray(data?.parts) && data.parts) ||
+    [];
+
+  // If the JSON is just a flat list of questions, wrap it in one section.
+  const flatQuestions: any[] =
+    (Array.isArray(data?.questions) && data.questions) ||
+    (Array.isArray(data?.predicted_paper?.questions) && data.predicted_paper.questions) ||
+    [];
+
+  const sections: any[] =
+    sectionsRaw.length > 0
+      ? sectionsRaw
+      : flatQuestions.length > 0
+        ? [{ title: "Predicted questions", questions: flatQuestions }]
+        : [];
+
+  // Normalize each section's questions[] so the renderer below can rely on
+  // q.text / q.marks / q.cluster / q.confidence regardless of input shape.
+  const normalizedSections = sections.map((s: any) => {
+    const qs: any[] = Array.isArray(s.questions)
+      ? s.questions
+      : Array.isArray(s.items)
+        ? s.items
+        : Array.isArray(s.qs)
+          ? s.qs
+          : [];
+    return {
+      title: s.title ?? s.name ?? s.heading ?? "Section",
+      meta: s.meta ?? s.weight ?? s.marks ?? null,
+      questions: qs.map((q: any) => ({
+        text: q.text ?? q.question ?? q.statement ?? q.prompt ?? "",
+        marks: q.marks ?? q.mark ?? null,
+        cluster: q.cluster ?? q.topic ?? q.tag ?? null,
+        confidence: q.confidence ?? q.probability ?? null,
+        trap: q.trap ?? q.common_trap ?? null,
+        evidence: q.evidence ?? q.pyq_evidence ?? null,
+        note: q.note ?? q.strategy ?? q.tip ?? null,
+      })).filter((q: any) => q.text),
+    };
+  });
+
+  const meta = data?.meta ?? data?.predicted_paper?.meta ?? data?.paper?.meta ?? {};
 
   return (
     <div className="mt-2 space-y-6">
@@ -428,16 +521,16 @@ function PredictorPaperView({ content }: { content: Content }) {
         />
       </div>
 
-      {sections.length === 0 ? (
+      {normalizedSections.length === 0 ? (
         <p className="text-[13px] text-chalk-400">
           Predictor paper has no sections yet.
         </p>
       ) : (
-        sections.map((s, si) => (
+        normalizedSections.map((s, si) => (
           <section key={si}>
             <SectionHeader
-              title={`${String.fromCharCode(65 + si)}  ${s.title || "Section"}`}
-              meta={s.meta || s.weight}
+              title={`${String.fromCharCode(65 + si)}  ${s.title}`}
+              meta={s.meta}
             />
             <div className="mt-3 space-y-4">
               {(s.questions || []).map((q: any, qi: number) => (
@@ -447,10 +540,16 @@ function PredictorPaperView({ content }: { content: Content }) {
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <p className="caption">{q.cluster || "Topic"}</p>
-                    <Pill variant="mint">{q.confidence || "HIGH"}</Pill>
+                    {q.confidence && (
+                      <Pill variant="mint">
+                        {typeof q.confidence === "number"
+                          ? `${q.confidence}%`
+                          : String(q.confidence).toUpperCase()}
+                      </Pill>
+                    )}
                   </div>
                   <p className="text-[14px] leading-relaxed text-[rgb(var(--fg))]">
-                    Q{qi + 1}. {q.text || q.question}
+                    Q{qi + 1}. {q.text}
                   </p>
                   {q.marks && (
                     <p className="mt-2 text-[10px] uppercase tracking-cap text-chalk-500">

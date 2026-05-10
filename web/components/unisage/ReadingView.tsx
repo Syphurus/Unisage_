@@ -45,6 +45,9 @@ export function ReadingView({
           .slice(0, 64);
         h.id = `${slug}-${i}`;
       }
+      // Marker so the analytics reading-tracker can locate section anchors
+      // without needing prop drilling. See useReadingTracker.getViewState.
+      h.setAttribute("data-rv-heading", "1");
       return {
         id: h.id,
         text: h.textContent || "",

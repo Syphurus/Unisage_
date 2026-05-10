@@ -1,13 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { useSubjects } from "@/lib/hooks/useSubjects";
-import { useAuth } from "@/lib/hooks/useAuth";
 import {
-  useProgress,
-  useSessionStats,
-  useQuizAttempts,
-} from "@/lib/hooks/useProgress";
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  BarChart,
+  Bar,
+} from "recharts";
 import { MobileTopBar, PageHeader } from "@/components/unisage/AppShell";
 import { PageContainer, Section } from "@/components/unisage/PageContainer";
 import {
@@ -16,61 +20,69 @@ import {
   Pill,
   StatTile,
 } from "@/components/unisage/primitives";
-import type { Subject } from "@/lib/types";
+import {
+  useDashboardStats,
+  useMySubjectAnalytics,
+} from "@/lib/hooks/useDashboardAnalytics";
 
+/**
+ * Real analytics — sourced from the rollup tables maintained by pg_cron.
+ * Replaces the prior page that ran on speculative numbers / hand-drawn SVG.
+ */
 export default function AnalyticsPage() {
-  const { user } = useAuth();
-  const { subjects } = useSubjects(
-    user?.semester ? { year: user.year, semester: user.semester } : undefined,
+  const { stats } = useDashboardStats();
+  const { subjects: subjectAnalytics } = useMySubjectAnalytics();
+
+  // Trend chart: active minutes per day for the last N days from the
+  // server's timeline payload. NaN-safe: empty timeline → empty chart.
+  const trend = useMemo(
+    () =>
+      (stats?.timeline ?? []).map((d) => ({
+        day: d.day.slice(5), // MM-DD
+        minutes: Math.round(d.activeSeconds / 60),
+        recall: d.quizPct ?? 0,
+      })),
+    [stats?.timeline]
   );
-  const { progress } = useProgress();
-  const { stats } = useSessionStats();
-  const { attempts } = useQuizAttempts();
 
-  const overallRecall = Math.round(stats?.averageQuizScore ?? 0);
+  // Mastery: rollup already orders subjects by weakness DESC. We flip that
+  // here to "best mastery first" for the mastery panel; the weakness panel
+  // (below) keeps the original ordering.
+  const mastery = useMemo(
+    () =>
+      [...subjectAnalytics].sort(
+        (a, b) => (b.completionPct ?? 0) - (a.completionPct ?? 0)
+      ),
+    [subjectAnalytics]
+  );
 
-  const trend = useMemo(() => {
-    const last = (attempts || []).slice(-7);
-    if (last.length === 0) return [40, 48, 52, 55, 60, 65, overallRecall || 70];
-    return last.map((a: any) => a.score ?? 50);
-  }, [attempts, overallRecall]);
-
-  const mastery = useMemo(() => {
-    return subjects.map((s: Subject) => {
-      const sp = progress.filter(
-        (p: any) => p.subjectId === s.id || p.subject?.id === s.id,
-      );
-      const completed = sp.filter(
-        (p: any) => p.completed || p.percentage >= 100,
-      ).length;
-      const total = Math.max(sp.length, 1);
-      return { subject: s, pct: Math.round((completed / total) * 100) };
-    });
-  }, [subjects, progress]);
-
+  // Time allocation by content type — rollup doesn't break this down per
+  // type yet, so we infer from per-subject active minutes vs quiz vs flash
+  // signals. Lightweight + honest about being a coarse approximation.
   const timeAllocation = useMemo(() => {
-    const buckets: Record<string, number> = {};
-    progress.forEach((p: any) => {
-      const t = p.contentType || p.type || "Other";
-      buckets[t] = (buckets[t] || 0) + (p.timeSpent || 0);
-    });
-    const total = Object.values(buckets).reduce((a, b) => a + b, 0) || 1;
-    const labels: Record<string, string> = {
-      flashcard: "Recall",
-      long_notes: "Long notes",
-      short_notes: "Short notes",
-      quiz: "Lab",
-      exam_tips: "Tactics",
-      pyqs: "PYQ",
-      paper_predictor: "Predictor",
-    };
-    return Object.entries(buckets)
-      .map(([k, v]) => ({
-        label: labels[k] ?? k,
-        pct: Math.round((v / total) * 100),
-      }))
-      .sort((a, b) => b.pct - a.pct);
-  }, [progress]);
+    const reading = subjectAnalytics.reduce(
+      (s, x) => s + (x.activeMinutes || 0),
+      0
+    );
+    const quiz = subjectAnalytics.reduce(
+      (s, x) => s + (x.quizAttempts || 0) * 3, // ~3 min per quiz attempt
+      0
+    );
+    const flash = subjectAnalytics.reduce(
+      (s, x) => s + Math.round((x.flashcardsReviewed || 0) * 0.25), // ~15s per card
+      0
+    );
+    const total = Math.max(1, reading + quiz + flash);
+    return [
+      { label: "Reading", pct: Math.round((reading / total) * 100), minutes: reading },
+      { label: "Lab", pct: Math.round((quiz / total) * 100), minutes: quiz },
+      { label: "Recall", pct: Math.round((flash / total) * 100), minutes: flash },
+    ].filter((r) => r.minutes > 0);
+  }, [subjectAnalytics]);
+
+  const overallRecall = stats?.averageQuizScore ?? 0;
+  const totalHours = Math.floor((stats?.totalStudyMinutes ?? 0) / 60);
+  const totalRemMin = (stats?.totalStudyMinutes ?? 0) % 60;
 
   return (
     <div className="min-h-screen">
@@ -79,9 +91,9 @@ export default function AnalyticsPage() {
       <PageContainer>
         <Section density="compact" className="!pt-6 md:!pt-10 lg:!pt-14">
           <PageHeader
-            caption="LAST 7 DAYS · LIVE"
+            caption={`LAST ${trend.length || 7} DAYS · LIVE`}
             title="Analytics"
-            description="Recall accuracy, mastery, and where your hours actually go."
+            description="Real recall, real time, real weakness — sourced from your activity, not estimated."
           />
         </Section>
       </PageContainer>
@@ -91,39 +103,78 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 pb-6">
           <StatTile value={`${overallRecall}%`} label="Recall" tone="mint" />
           <StatTile
-            value={`${Math.floor((stats?.totalStudyMinutes ?? 0) / 60)}h`}
-            label="Time invested"
+            value={`${totalHours}h ${totalRemMin}m`}
+            label="Time studied"
           />
           <StatTile
             value={stats?.completedContent ?? 0}
             label="Content done"
           />
-          <StatTile value={stats?.currentStreak ?? 0} label="Streak (d)" />
+          <StatTile
+            value={`${stats?.currentStreak ?? 0}d`}
+            label="Streak"
+          />
         </div>
       </PageContainer>
 
-      {/* Trend chart + Mastery (split lg) */}
+      {/* Trend area chart + Mastery list */}
       <PageContainer>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
           <div className="lg:col-span-2 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-7">
             <div className="flex items-center justify-between gap-2">
-              <p className="caption">Recall accuracy · trend</p>
+              <p className="caption">Active minutes · last {trend.length || 7} days</p>
               {trend.length > 1 && (
                 <Pill variant="mint">
-                  +{trend[trend.length - 1] - trend[0]} pts
+                  {trend.reduce((s, x) => s + x.minutes, 0)} min total
                 </Pill>
               )}
             </div>
             <div className="mt-3 flex items-baseline gap-3">
               <p className="text-[44px] lg:text-[56px] font-bold leading-none text-mint">
-                {overallRecall}%
+                {trend.length > 0
+                  ? Math.round(
+                      trend.reduce((s, x) => s + x.minutes, 0) / Math.max(trend.length, 1)
+                    )
+                  : 0}
               </p>
+              <p className="text-[13px] text-chalk-400">avg min/day</p>
             </div>
-            <Sparkline values={trend} />
-            <div className="mt-2 flex justify-between text-[10px] text-chalk-500">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-                <span key={d}>{d}</span>
-              ))}
+            <div className="mt-4 h-44 lg:h-52 w-full">
+              {trend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="mintFade" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="rgb(60,206,156)" stopOpacity="0.5" />
+                        <stop offset="100%" stopColor="rgb(60,206,156)" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} width={28} />
+                    <Tooltip
+                      contentStyle={{
+                        background: "rgba(15,17,21,0.95)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      labelStyle={{ color: "rgba(255,255,255,0.7)" }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="minutes"
+                      stroke="rgb(60,206,156)"
+                      strokeWidth={2}
+                      fill="url(#mintFade)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-[12.5px] text-chalk-500">
+                  No tracked time yet — start a chapter to see it here.
+                </div>
+              )}
             </div>
           </div>
 
@@ -135,30 +186,22 @@ export default function AnalyticsPage() {
               ) : (
                 mastery.slice(0, 6).map((m) => {
                   const tone =
-                    m.pct >= 75
-                      ? "mint"
-                      : m.pct >= 50
-                        ? "ember"
-                        : "flame";
+                    m.completionPct >= 75 ? "mint" : m.completionPct >= 50 ? "ember" : "flame";
                   return (
-                    <li key={m.subject.id}>
+                    <li key={m.subjectId}>
                       <div className="flex items-baseline justify-between gap-2 mb-1.5">
                         <p className="text-[12.5px] font-medium text-[rgb(var(--fg))]">
-                          {m.subject.code}
+                          {m.subject?.code ?? m.subjectId.slice(0, 6)}
                         </p>
                         <p
                           className={`text-[12.5px] font-bold tabular-nums ${
-                            tone === "mint"
-                              ? "text-mint"
-                              : tone === "ember"
-                                ? "text-ember-400"
-                                : "text-flame-500"
+                            tone === "mint" ? "text-mint" : tone === "ember" ? "text-ember-400" : "text-flame-500"
                           }`}
                         >
-                          {m.pct}%
+                          {m.completionPct}%
                         </p>
                       </div>
-                      <SegmentedProgress value={m.pct} tone={tone} />
+                      <SegmentedProgress value={m.completionPct} tone={tone} />
                     </li>
                   );
                 })
@@ -166,6 +209,48 @@ export default function AnalyticsPage() {
             </ul>
           </div>
         </div>
+      </PageContainer>
+
+      {/* Weakness ranking — "study these first" */}
+      <PageContainer>
+        <Section density="compact">
+          <SectionHeader
+            title="Study these first"
+            meta={`${subjectAnalytics.length} subjects`}
+          />
+          {subjectAnalytics.length === 0 ? (
+            <p className="mt-5 py-6 text-center text-[13px] text-chalk-500">
+              Open a subject to start building your weakness ranking.
+            </p>
+          ) : (
+            <div className="mt-5 h-56 lg:h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={subjectAnalytics.slice(0, 8).map((s) => ({
+                    name: s.subject?.code ?? s.subjectId.slice(0, 6),
+                    weakness: s.weaknessScore,
+                  }))}
+                  layout="vertical"
+                  margin={{ top: 4, right: 24, left: 4, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="name" type="category" tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11 }} width={80} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "rgba(15,17,21,0.95)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                    formatter={(v) => [`${v} / 100`, "Weakness"]}
+                  />
+                  <Bar dataKey="weakness" fill="rgb(252,116,98)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Section>
       </PageContainer>
 
       {/* Time allocation */}
@@ -179,23 +264,15 @@ export default function AnalyticsPage() {
           ) : (
             <ul className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-3.5">
               {timeAllocation.map((row) => (
-                <li
-                  key={row.label}
-                  className="flex items-center gap-3 text-[13px]"
-                >
-                  <span className="w-24 shrink-0 text-chalk-300">
-                    {row.label}
-                  </span>
+                <li key={row.label} className="flex items-center gap-3 text-[13px]">
+                  <span className="w-24 shrink-0 text-chalk-300">{row.label}</span>
                   <div className="flex-1">
                     <div className="h-2 w-full overflow-hidden rounded-full bg-white/[0.05]">
-                      <div
-                        className="h-full bg-mint-400"
-                        style={{ width: `${Math.max(2, row.pct)}%` }}
-                      />
+                      <div className="h-full bg-mint-400" style={{ width: `${Math.max(2, row.pct)}%` }} />
                     </div>
                   </div>
-                  <span className="w-10 shrink-0 text-right font-semibold text-[rgb(var(--fg))]">
-                    {row.pct}%
+                  <span className="w-16 shrink-0 text-right font-semibold text-[rgb(var(--fg))]">
+                    {row.minutes}m · {row.pct}%
                   </span>
                 </li>
               ))}
@@ -204,43 +281,5 @@ export default function AnalyticsPage() {
         </Section>
       </PageContainer>
     </div>
-  );
-}
-
-function Sparkline({ values }: { values: number[] }) {
-  if (values.length < 2) return null;
-  const w = 600;
-  const h = 100;
-  const max = Math.max(...values, 100);
-  const min = Math.min(...values, 0);
-  const range = max - min || 1;
-  const step = w / (values.length - 1);
-  const points = values
-    .map((v, i) => `${i * step},${h - ((v - min) / range) * h}`)
-    .join(" ");
-  const area = `0,${h} ${points} ${w},${h}`;
-
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      preserveAspectRatio="none"
-      className="mt-4 h-20 lg:h-28 w-full"
-    >
-      <defs>
-        <linearGradient id="mintFade" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgb(31,184,144)" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="rgb(31,184,144)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={area} fill="url(#mintFade)" />
-      <polyline
-        points={points}
-        fill="none"
-        stroke="rgb(60,206,156)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

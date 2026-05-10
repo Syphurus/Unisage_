@@ -206,8 +206,25 @@ const submitQuiz = {
     contentId: Joi.string().uuid().required(),
     score: Joi.number().integer().min(0).required(),
     totalQuestions: Joi.number().integer().min(1).required(),
-    answers: Joi.object().pattern(Joi.string(), Joi.any()).default({}),
+    answers: Joi.alternatives().try(
+      Joi.object().pattern(Joi.string(), Joi.any()),
+      Joi.array().items(Joi.any())
+    ).default({}),
     timeTaken: Joi.number().integer().min(0).allow(null),
+    // Optional per-question breakdown. If provided, persisted to
+    // quiz_attempts.per_question and rolled up by the cron into
+    // quiz_question_stats. Older clients that don't send this still work.
+    perQuestion: Joi.array()
+      .max(500)
+      .items(
+        Joi.object({
+          i: Joi.number().integer().min(0).required(),
+          selected: Joi.number().integer().min(-1).allow(null),
+          correct: Joi.boolean().required(),
+          ms: Joi.number().integer().min(0).max(60 * 60 * 1000).allow(null),
+        })
+      )
+      .optional(),
   }),
 };
 
@@ -241,6 +258,68 @@ const startSession = {
 
 const endSession = {
   params: uuidParam,
+};
+
+// ──────────────────────────────────────────────
+// ANALYTICS INGESTION
+// ──────────────────────────────────────────────
+
+// Reading-time heartbeat. Body carries the active-time delta accumulated
+// since the last heartbeat plus current scroll/section state. We deliberately
+// cap maxes so a malicious client can't inflate metrics — a 5-minute heartbeat
+// interval × 30s grace = 330s upper bound on any single delta.
+const heartbeat = {
+  body: Joi.object({
+    contentId: Joi.string().uuid().required(),
+    subjectId: Joi.string().uuid().allow(null, ""),
+    sessionId: Joi.string().uuid().allow(null, ""),
+    deltaActiveSeconds: Joi.number().integer().min(0).max(330).required(),
+    maxScrollPct: Joi.number().integer().min(0).max(100).default(0),
+    sectionsViewed: Joi.array().items(Joi.string().max(200)).max(200).default([]),
+    clientMeta: Joi.object().max(20).optional(),
+    // Sent on the final flush via fetch keepalive / sendBeacon. When true,
+    // the server marks the row ended and the next heartbeat starts a new one.
+    end: Joi.boolean().default(false),
+  }),
+};
+
+// Bulk event ingestion. Bounded payload to keep ingestion cheap.
+const ingestEvents = {
+  body: Joi.object({
+    events: Joi.array()
+      .min(1)
+      .max(50)
+      .items(
+        Joi.object({
+          type: Joi.string().min(1).max(64).required(),
+          contentId: Joi.string().uuid().allow(null, ""),
+          subjectId: Joi.string().uuid().allow(null, ""),
+          payload: Joi.object().max(20).optional(),
+          // Client-provided timestamp is informational only; server
+          // overrides if it's in the future or > 1h in the past.
+          occurredAt: Joi.string().isoDate().optional(),
+        })
+      )
+      .required(),
+  }),
+};
+
+// Persists a batch of flashcard reviews — one POST at session end.
+const flashcardReviews = {
+  body: Joi.object({
+    contentId: Joi.string().uuid().required(),
+    reviews: Joi.array()
+      .min(1)
+      .max(500)
+      .items(
+        Joi.object({
+          cardIndex: Joi.number().integer().min(0).max(10000).required(),
+          rating: Joi.string().valid("forgot", "shaky", "confident").required(),
+          responseMs: Joi.number().integer().min(0).max(60 * 60 * 1000).allow(null),
+        })
+      )
+      .required(),
+  }),
 };
 
 // ──────────────────────────────────────────────
@@ -425,6 +504,10 @@ module.exports = {
   // Sessions
   startSession,
   endSession,
+  // Analytics ingestion
+  heartbeat,
+  ingestEvents,
+  flashcardReviews,
   // Admin
   createSubject,
   updateSubject,

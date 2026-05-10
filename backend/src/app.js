@@ -28,6 +28,8 @@ const progressRoutes = require("./routes/progress.routes");
 const quizRoutes = require("./routes/quiz.routes");
 const bookmarksRoutes = require("./routes/bookmarks.routes");
 const sessionsRoutes = require("./routes/sessions.routes");
+const analyticsRoutes = require("./routes/analytics.routes");
+const flashcardsRoutes = require("./routes/flashcards.routes");
 const adminRoutes = require("./routes/admin.routes");
 const metaRoutes = require("./routes/meta.routes");
 
@@ -141,6 +143,8 @@ app.use("/api/progress", progressRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/bookmarks", bookmarksRoutes);
 app.use("/api/sessions", sessionsRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/flashcards", flashcardsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/meta", metaRoutes);
 

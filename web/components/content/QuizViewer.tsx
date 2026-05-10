@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -175,6 +175,12 @@ export function QuizViewer({
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
 
+  // Per-question response time. Tracked in refs so we don't trigger
+  // re-renders on every tick and so the value is captured at the moment
+  // of answer (not at submit time).
+  const questionShownAtRef = useRef<number>(Date.now());
+  const responseMsRef = useRef<number[]>([]);
+
   useEffect(() => {
     setAnswers(Array(total).fill(null));
     setIdx(0);
@@ -182,7 +188,14 @@ export function QuizViewer({
     setScore(0);
     setTime(0);
     setDone(false);
+    responseMsRef.current = Array(total).fill(0);
+    questionShownAtRef.current = Date.now();
   }, [total]);
+
+  // Stamp the start time each time a new question is shown.
+  useEffect(() => {
+    questionShownAtRef.current = Date.now();
+  }, [idx]);
 
   useEffect(() => {
     if (done) return;
@@ -194,8 +207,18 @@ export function QuizViewer({
 
   const next = () => {
     if (selected != null && current) {
-      setAnswers((arr) => {
-        const next = [...arr];
+      // Capture response time for this question at the moment of answer.
+      // Cap at 1h so a tab left open doesn't write absurd values.
+      const responseMs = Math.min(
+        60 * 60 * 1000,
+        Math.max(0, Date.now() - questionShownAtRef.current)
+      );
+      const arr = responseMsRef.current.slice();
+      arr[idx] = responseMs;
+      responseMsRef.current = arr;
+
+      setAnswers((prev) => {
+        const next = [...prev];
         next[idx] = selected;
         return next;
       });
@@ -205,26 +228,43 @@ export function QuizViewer({
     }
     if (idx >= total - 1) {
       setDone(true);
-      // Submit attempt
+      // Submit attempt with per-question breakdown so the cron can roll
+      // it into quiz_question_stats.
       try {
+        // Resolve final answer + correctness arrays by treating the
+        // current selection as the answer for the current index.
+        const finalAnswers = answers.map((a, i) =>
+          i === idx ? selected : a
+        );
         const correct = allQuestions.filter(
-          (q, i) =>
-            (i === idx ? selected : answers[i]) === q.correctIndex,
+          (q, i) => finalAnswers[i] === q.correctIndex
         ).length;
         const contentId = contentItems[0]?.id;
         if (contentId) {
+          // Per-question payload matches the server's persisted shape.
+          const perQuestion = allQuestions.map((q, i) => ({
+            i,
+            selected: finalAnswers[i] ?? null,
+            correct: finalAnswers[i] === q.correctIndex,
+            ms: responseMsRef.current[i] ?? null,
+          }));
+
           quizAPI.submitAttempt({
             contentId,
-            score: Math.round((correct / total) * 100),
-            answers: answers.map((a, i) => ({
+            score: correct, // server stores raw correct count
+            totalQuestions: total,
+            answers: finalAnswers.map((a, i) => ({
               questionIndex: i,
-              selectedIndex: i === idx ? selected : a,
-              correct:
-                (i === idx ? selected : a) === allQuestions[i]?.correctIndex,
+              selectedIndex: a,
+              correct: a === allQuestions[i]?.correctIndex,
             })),
+            timeTaken: time,
+            perQuestion,
           } as any);
         }
-      } catch {}
+      } catch {
+        // analytics submission must never break completion UX
+      }
     } else {
       setIdx((i) => i + 1);
       setSelected(null);
