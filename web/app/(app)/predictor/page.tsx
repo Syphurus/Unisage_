@@ -326,7 +326,7 @@ function ComingSoonCard({ subject }: { subject: Subject }) {
         Coming soon — predictions for this subject are being rolled out.
       </p>
       <div className="mt-3">
-        <Pill disabled>Coming soon</Pill>
+        <Pill className="opacity-60 cursor-not-allowed">Coming soon</Pill>
       </div>
     </div>
   );

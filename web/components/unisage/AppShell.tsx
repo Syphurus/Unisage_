@@ -23,7 +23,12 @@ import {
 } from "lucide-react";
 import { ReactNode } from "react";
 
-const NAV: { href: string; label: string; Icon: any; group?: "main" | "more" }[] = [
+const NAV: {
+  href: string;
+  label: string;
+  Icon: any;
+  group?: "main" | "more";
+}[] = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutGrid },
   { href: "/learn", label: "Learn", Icon: BookOpen },
   { href: "/predictor", label: "Predictor", Icon: Activity },
@@ -72,7 +77,7 @@ export function Wordmark({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
           "font-semibold tracking-tight text-[rgb(var(--fg))]",
           size === "sm" && "text-[13px]",
           size === "md" && "text-[15px]",
-          size === "lg" && "text-[18px]",
+          size === "lg" && "text-[18px]"
         )}
       >
         unisage
@@ -96,7 +101,7 @@ export function PhoneFrame({
       className={cn(
         "mx-auto w-full min-h-screen bg-[rgb(var(--bg))] relative",
         "max-w-[480px] md:max-w-[560px]",
-        className,
+        className
       )}
     >
       {children}
@@ -130,7 +135,7 @@ export function AppShell({
       <main
         className={cn(
           "min-h-screen lg:pl-[248px] xl:pl-[268px]",
-          !hideTabs && "pb-[80px] lg:pb-0",
+          !hideTabs && "pb-[80px] lg:pb-0"
         )}
       >
         {children}
@@ -156,9 +161,7 @@ function DesktopSidebar() {
     .toUpperCase();
 
   return (
-    <aside
-      className="hidden lg:flex lg:flex-col fixed top-0 left-0 z-30 h-screen w-[248px] xl:w-[268px] border-r border-white/[0.06] bg-[rgb(var(--bg-elev))]/40 backdrop-blur-xl"
-    >
+    <aside className="hidden lg:flex lg:flex-col fixed top-0 left-0 z-30 h-screen w-[248px] xl:w-[268px] border-r border-white/[0.06] bg-[rgb(var(--bg-elev))]/40 backdrop-blur-xl">
       {/* Brand */}
       <div className="px-6 pt-7 pb-6">
         <Link href="/dashboard" className="inline-flex">
@@ -178,7 +181,7 @@ function DesktopSidebar() {
                 Icon={Icon}
                 active={pathname === href || pathname.startsWith(`${href}/`)}
               />
-            ),
+            )
           )}
         </NavGroup>
         <NavGroup label="Discover">
@@ -191,7 +194,7 @@ function DesktopSidebar() {
                 Icon={Icon}
                 active={pathname === href || pathname.startsWith(`${href}/`)}
               />
-            ),
+            )
           )}
         </NavGroup>
       </nav>
@@ -230,13 +233,7 @@ function DesktopSidebar() {
   );
 }
 
-function NavGroup({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function NavGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
@@ -265,14 +262,11 @@ function NavLink({
         "flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-[13.5px] font-medium transition-colors",
         active
           ? "bg-mint-500/10 text-mint-400"
-          : "text-chalk-300 hover:bg-white/[0.04] hover:text-[rgb(var(--fg))]",
+          : "text-chalk-300 hover:bg-white/[0.04] hover:text-[rgb(var(--fg))]"
       )}
     >
       <Icon
-        className={cn(
-          "h-4 w-4",
-          active ? "stroke-[2.2px]" : "stroke-[1.6px]",
-        )}
+        className={cn("h-4 w-4", active ? "stroke-[2.2px]" : "stroke-[1.6px]")}
       />
       {label}
     </Link>
@@ -291,8 +285,7 @@ function MobileBottomTabs() {
     >
       <ul className="grid grid-cols-5">
         {MOBILE_TABS.map(({ href, label, Icon }) => {
-          const isActive =
-            pathname === href || pathname.startsWith(`${href}/`);
+          const isActive = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <li key={href}>
               <Link
@@ -301,19 +294,19 @@ function MobileBottomTabs() {
                   "flex h-[60px] flex-col items-center justify-center gap-1 transition-colors",
                   isActive
                     ? "text-mint-400"
-                    : "text-chalk-400 hover:text-[rgb(var(--fg))]",
+                    : "text-chalk-400 hover:text-[rgb(var(--fg))]"
                 )}
               >
                 <Icon
                   className={cn(
                     "h-[20px] w-[20px]",
-                    isActive ? "stroke-[2px]" : "stroke-[1.6px]",
+                    isActive ? "stroke-[2px]" : "stroke-[1.6px]"
                   )}
                 />
                 <span
                   className={cn(
                     "text-[9px] font-semibold uppercase tracking-[0.12em]",
-                    isActive ? "text-mint-400" : "text-chalk-500",
+                    isActive ? "text-mint-400" : "text-chalk-500"
                   )}
                 >
                   {label}
@@ -350,7 +343,7 @@ export function PageHeader({
     <header
       className={cn(
         "flex items-end justify-between gap-6 flex-wrap",
-        className,
+        className
       )}
     >
       <div className="min-w-0 flex-1">
@@ -462,10 +455,7 @@ export function TopHeader({
     <>
       {/* Mobile: classic header */}
       <header
-        className={cn(
-          "lg:hidden px-5 pt-4 pb-3 md:px-8 md:pt-6",
-          className,
-        )}
+        className={cn("lg:hidden px-5 pt-4 pb-3 md:px-8 md:pt-6", className)}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">

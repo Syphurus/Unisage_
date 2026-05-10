@@ -13,10 +13,7 @@ import {
   useDashboardStats,
   useMySubjectAnalytics,
 } from "@/lib/hooks/useDashboardAnalytics";
-import {
-  PageHeader,
-  MobileTopBar,
-} from "@/components/unisage/AppShell";
+import { PageHeader, MobileTopBar } from "@/components/unisage/AppShell";
 import { PageContainer, Section } from "@/components/unisage/PageContainer";
 import {
   Pill,
@@ -41,7 +38,7 @@ import type { Subject } from "@/lib/types";
 export default function DashboardPage() {
   const { user } = useAuth();
   const { subjects, isLoading: subjLoading } = useSubjects(
-    user?.semester ? { year: user.year, semester: user.semester } : undefined,
+    user?.semester ? { year: user.year, semester: user.semester } : undefined
   );
   const { progress } = useProgress();
   const { stats: legacyStats } = useSessionStats();
@@ -102,8 +99,7 @@ export default function DashboardPage() {
             <br className="md:hidden" />
             <span className="md:ml-3"></span>
             <span className="text-mint">5 days</span>,{" "}
-            <span className="text-mint">{totalSubjects} subjects</span>{" "}
-            matter.
+            <span className="text-mint">{totalSubjects} subjects</span> matter.
           </h1>
         </Section>
       </PageContainer>
@@ -160,8 +156,7 @@ export default function DashboardPage() {
                     {fresh ? (
                       <p className="mt-5 text-[12.5px] leading-relaxed text-chalk-400">
                         Not started yet. One tap opens the subject hub —
-                        flashcards, notes, and predicted papers are all
-                        there.
+                        flashcards, notes, and predicted papers are all there.
                       </p>
                     ) : (
                       <SegmentedProgress
@@ -278,10 +273,30 @@ export default function DashboardPage() {
           <SectionHeader title="Quick tools" />
           <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             {[
-              { href: "/learn", Icon: Repeat, label: "Recall Cycles", sub: "Spaced repetition" },
-              { href: "/learn", Icon: GraduationCap, label: "Retrieval Lab", sub: "Timed MCQ drills" },
-              { href: "/predictor", Icon: FileText, label: "PYQ", sub: "Past paper clusters" },
-              { href: "/learn", Icon: ArrowRight, label: "Exam tactics", sub: "Strategies & shortcuts" },
+              {
+                href: "/learn",
+                Icon: Repeat,
+                label: "Recall Cycles",
+                sub: "Spaced repetition",
+              },
+              {
+                href: "/learn",
+                Icon: GraduationCap,
+                label: "Retrieval Lab",
+                sub: "Timed MCQ drills",
+              },
+              {
+                href: "/predictor",
+                Icon: FileText,
+                label: "PYQ",
+                sub: "Past paper clusters",
+              },
+              {
+                href: "/learn",
+                Icon: ArrowRight,
+                label: "Exam tactics",
+                sub: "Strategies & shortcuts",
+              },
             ].map(({ href, Icon, label, sub }) => (
               <Link
                 key={label}
@@ -307,7 +322,10 @@ export default function DashboardPage() {
       {weakOnes.length > 0 && (
         <Section density="compact">
           <PageContainer>
-            <SectionHeader title="Weak zone" meta={`${weakOnes.length} alerts`} />
+            <SectionHeader
+              title="Weak zone"
+              meta={`${weakOnes.length} alerts`}
+            />
             <div className="mt-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {weakOnes.slice(0, 6).map((r) => (
                 <AlertCard

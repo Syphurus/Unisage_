@@ -206,10 +206,12 @@ const submitQuiz = {
     contentId: Joi.string().uuid().required(),
     score: Joi.number().integer().min(0).required(),
     totalQuestions: Joi.number().integer().min(1).required(),
-    answers: Joi.alternatives().try(
-      Joi.object().pattern(Joi.string(), Joi.any()),
-      Joi.array().items(Joi.any())
-    ).default({}),
+    answers: Joi.alternatives()
+      .try(
+        Joi.object().pattern(Joi.string(), Joi.any()),
+        Joi.array().items(Joi.any())
+      )
+      .default({}),
     timeTaken: Joi.number().integer().min(0).allow(null),
     // Optional per-question breakdown. If provided, persisted to
     // quiz_attempts.per_question and rolled up by the cron into
@@ -221,7 +223,11 @@ const submitQuiz = {
           i: Joi.number().integer().min(0).required(),
           selected: Joi.number().integer().min(-1).allow(null),
           correct: Joi.boolean().required(),
-          ms: Joi.number().integer().min(0).max(60 * 60 * 1000).allow(null),
+          ms: Joi.number()
+            .integer()
+            .min(0)
+            .max(60 * 60 * 1000)
+            .allow(null),
         })
       )
       .optional(),
@@ -275,7 +281,10 @@ const heartbeat = {
     sessionId: Joi.string().uuid().allow(null, ""),
     deltaActiveSeconds: Joi.number().integer().min(0).max(330).required(),
     maxScrollPct: Joi.number().integer().min(0).max(100).default(0),
-    sectionsViewed: Joi.array().items(Joi.string().max(200)).max(200).default([]),
+    sectionsViewed: Joi.array()
+      .items(Joi.string().max(200))
+      .max(200)
+      .default([]),
     clientMeta: Joi.object().max(20).optional(),
     // Sent on the final flush via fetch keepalive / sendBeacon. When true,
     // the server marks the row ended and the next heartbeat starts a new one.
@@ -315,7 +324,11 @@ const flashcardReviews = {
         Joi.object({
           cardIndex: Joi.number().integer().min(0).max(10000).required(),
           rating: Joi.string().valid("forgot", "shaky", "confident").required(),
-          responseMs: Joi.number().integer().min(0).max(60 * 60 * 1000).allow(null),
+          responseMs: Joi.number()
+            .integer()
+            .min(0)
+            .max(60 * 60 * 1000)
+            .allow(null),
         })
       )
       .required(),
@@ -396,7 +409,9 @@ const createContent = {
     isPublished: Joi.boolean().default(false),
   }).custom((value, helpers) => {
     if (!value.subjectId && !value.unitId) {
-      return helpers.error("any.custom", { message: "Either subjectId or unitId is required" });
+      return helpers.error("any.custom", {
+        message: "Either subjectId or unitId is required",
+      });
     }
     return value;
   }),
