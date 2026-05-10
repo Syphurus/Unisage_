@@ -6,8 +6,12 @@ import {
   Calendar,
   Clock,
   Download,
+  ExternalLink,
   Layers,
 } from "lucide-react";
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 import {
   Pill,
   MetaCaption,
@@ -219,34 +223,58 @@ function QuizList({ items }: { items: Content[] }) {
 function PyqList({ items }: { items: Content[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4">
-      {items.map((c) => {
-        const data = c.data as any;
-        return (
-          <Link
-            key={c.id}
-            href={`/content/${c.id}`}
-            className="group flex items-start gap-3 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4 lg:p-5 transition-all hover:border-white/[0.14] hover:bg-[rgb(var(--bg-subtle))]"
-          >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-mint-500/10 text-mint-400">
-              <Calendar className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <MetaCaption>
-                {data?.year ?? "Year"} · {data?.examType ?? "Paper"}
-              </MetaCaption>
-              <p className="mt-1 text-[14px] font-semibold text-[rgb(var(--fg))] truncate">
-                {c.title}
-              </p>
-              <p className="mt-1 text-[11.5px] text-chalk-400">
-                {Array.isArray(data?.questions)
-                  ? `${data.questions.length} questions`
-                  : "Open paper"}
-              </p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-chalk-500 transition-transform group-hover:translate-x-1" />
-          </Link>
-        );
-      })}
+      {items.map((c) => (
+        <FileCard key={c.id} content={c} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Card with a real "Open" (inline view) and "Download" link, hitting
+ * the backend file routes that serve files associated with a content row.
+ */
+function FileCard({ content: c }: { content: Content }) {
+  const data = c.data as any;
+  const viewUrl = `${API_BASE}/api/content/${c.id}/view`;
+  const downloadUrl = `${API_BASE}/api/content/${c.id}/download`;
+  return (
+    <div className="group rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4 lg:p-5 transition-all hover:border-white/[0.14] hover:bg-[rgb(var(--bg-subtle))]">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-mint-500/10 text-mint-400">
+          <Calendar className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <MetaCaption>
+            {data?.year ?? "Year"} · {data?.examType ?? "Paper"}
+          </MetaCaption>
+          <p className="mt-1 text-[14px] font-semibold text-[rgb(var(--fg))] truncate">
+            {c.title}
+          </p>
+          {Array.isArray(data?.questions) && (
+            <p className="mt-1 text-[11.5px] text-chalk-400">
+              {data.questions.length} questions
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="mt-4 flex items-center gap-2">
+        <a
+          href={viewUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-pill border border-mint-500/30 bg-mint-500/10 px-3 py-1.5 text-[12px] font-semibold text-mint-400 hover:bg-mint-500/15 transition-colors"
+        >
+          <ExternalLink className="h-3.5 w-3.5" /> Open
+        </a>
+        <a
+          href={downloadUrl}
+          download
+          className="inline-flex items-center justify-center gap-1.5 rounded-pill border border-white/[0.08] px-3 py-1.5 text-[12px] font-medium text-chalk-300 hover:bg-white/[0.05] transition-colors"
+        >
+          <Download className="h-3.5 w-3.5" />
+        </a>
+      </div>
     </div>
   );
 }
@@ -382,15 +410,37 @@ function SyllabusList({ items }: { items: Content[] }) {
     <div className="space-y-4">
       {items.map((c) => {
         const data = c.data as any;
+        const hasInlineContent =
+          data?.html || (Array.isArray(data?.topics) && data.topics.length);
+        // If syllabus is just a file (PDF), render as a file card
+        if (!hasInlineContent) {
+          return (
+            <div key={c.id} className="max-w-md">
+              <FileCard content={c} />
+            </div>
+          );
+        }
         return (
           <article
             key={c.id}
             className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6"
           >
-            <MetaCaption>{c.unit?.title ?? "Subject"}</MetaCaption>
-            <h3 className="mt-2 text-[18px] font-semibold text-[rgb(var(--fg))]">
-              {c.title}
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <MetaCaption>{c.unit?.title ?? "Subject"}</MetaCaption>
+                <h3 className="mt-2 text-[18px] font-semibold text-[rgb(var(--fg))]">
+                  {c.title}
+                </h3>
+              </div>
+              <a
+                href={`${API_BASE}/api/content/${c.id}/download`}
+                download
+                aria-label="Download syllabus"
+                className="grid h-9 w-9 place-items-center rounded-full text-chalk-300 hover:bg-white/[0.05]"
+              >
+                <Download className="h-4 w-4" />
+              </a>
+            </div>
             {data?.html ? (
               <div className="prose-notes mt-4">
                 <HtmlContent html={data.html} />
@@ -437,9 +487,8 @@ function AssignmentList({ items }: { items: Content[] }) {
         const dueIn = data?.dueInDays;
         const submitted = data?.submitted;
         return (
-          <Link
+          <div
             key={c.id}
-            href={`/content/${c.id}`}
             className="group rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 transition-all hover:border-white/[0.14] hover:bg-[rgb(var(--bg-subtle))]"
           >
             <div className="flex items-center justify-between gap-2">
@@ -472,7 +521,25 @@ function AssignmentList({ items }: { items: Content[] }) {
                 </span>
               )}
             </div>
-          </Link>
+            <div className="mt-4 flex items-center gap-2">
+              <a
+                href={`${API_BASE}/api/content/${c.id}/view`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-pill border border-mint-500/30 bg-mint-500/10 px-3 py-1.5 text-[12px] font-semibold text-mint-400 hover:bg-mint-500/15 transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open
+              </a>
+              <a
+                href={`${API_BASE}/api/content/${c.id}/download`}
+                download
+                aria-label="Download assignment"
+                className="inline-flex items-center justify-center gap-1.5 rounded-pill border border-white/[0.08] px-3 py-1.5 text-[12px] font-medium text-chalk-300 hover:bg-white/[0.05] transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </a>
+            </div>
+          </div>
         );
       })}
     </div>

@@ -253,34 +253,60 @@
     @apply animate-fade-in;
   }
 
-  /* Notes prose */
+  /* Premium notes prose — Notion / Medium style reading */
   .prose-notes {
-    color: rgb(var(--fg-muted));
-    line-height: 1.65;
-    font-size: 15px;
+    color: rgb(var(--fg));
+    line-height: 1.7;
+    font-size: 16px;
+    font-feature-settings: "ss01" 1, "ss02" 1, "kern" 1;
+  }
+  @media (min-width: 1024px) {
+    .prose-notes {
+      font-size: 17px;
+    }
+  }
+
+  .prose-notes h1,
+  .prose-notes h2,
+  .prose-notes h3,
+  .prose-notes h4 {
+    color: rgb(var(--fg));
+    letter-spacing: -0.015em;
+    scroll-margin-top: 6rem;
   }
   .prose-notes h1 {
-    @apply text-[22px] font-semibold mt-8 mb-3 first:mt-0;
-    color: rgb(var(--fg));
+    @apply text-[28px] lg:text-[34px] font-bold mt-12 mb-4 first:mt-0 leading-tight;
   }
   .prose-notes h2 {
-    @apply text-[18px] font-semibold mt-6 mb-2;
-    color: rgb(var(--fg));
+    @apply text-[22px] lg:text-[26px] font-bold mt-10 mb-3 leading-snug;
   }
   .prose-notes h3 {
-    @apply text-[16px] font-semibold mt-4 mb-1.5;
-    color: rgb(var(--fg));
+    @apply text-[18px] lg:text-[20px] font-semibold mt-7 mb-2 leading-snug;
+  }
+  .prose-notes h4 {
+    @apply text-[16px] lg:text-[17px] font-semibold mt-5 mb-1.5;
+    color: rgb(var(--fg-muted));
   }
   .prose-notes p {
-    @apply mb-3;
+    @apply mb-5;
+    color: rgb(var(--fg-muted));
+  }
+  .prose-notes p:has(+ ul),
+  .prose-notes p:has(+ ol) {
+    @apply mb-2;
   }
   .prose-notes strong {
     color: rgb(var(--fg));
     font-weight: 600;
   }
+  .prose-notes em {
+    color: rgb(var(--fg));
+    font-style: italic;
+  }
   .prose-notes ul,
   .prose-notes ol {
-    @apply mb-3 pl-5 space-y-1.5;
+    @apply mb-5 pl-6 space-y-2;
+    color: rgb(var(--fg-muted));
   }
   .prose-notes ul {
     list-style: disc;
@@ -288,59 +314,141 @@
   .prose-notes ol {
     list-style: decimal;
   }
+  .prose-notes ul li::marker,
+  .prose-notes ol li::marker {
+    color: rgba(var(--mint), 0.6);
+  }
+  .prose-notes li > p {
+    @apply mb-1;
+  }
+  .prose-notes li > ul,
+  .prose-notes li > ol {
+    @apply mt-2 mb-2;
+  }
+
+  /* Inline code */
   .prose-notes code {
     background: rgba(var(--mint), 0.1);
     color: rgb(var(--mint-bright));
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: 2px 7px;
+    border-radius: 5px;
     font-family: var(--font-mono, "JetBrains Mono", monospace);
-    font-size: 13px;
+    font-size: 0.88em;
+    border: 1px solid rgba(var(--mint), 0.18);
   }
+
+  /* Code blocks */
   .prose-notes pre {
     background: rgb(var(--bg-elev));
-    border: 1px solid rgba(var(--border), 0.06);
+    border: 1px solid rgba(var(--border), 0.08);
     border-radius: 12px;
-    padding: 14px 16px;
+    padding: 16px 20px;
     overflow-x: auto;
-    font-size: 13px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin: 1.5em 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   }
   .prose-notes pre code {
     background: transparent;
     color: rgb(var(--fg));
     padding: 0;
+    border: 0;
+    font-size: inherit;
   }
+
+  /* Blockquote — pull-quote style */
   .prose-notes blockquote {
-    border-left: 2px solid rgb(var(--mint));
-    padding-left: 14px;
+    border-left: 3px solid rgb(var(--mint));
+    padding: 4px 0 4px 20px;
     color: rgb(var(--fg-muted));
-    margin: 12px 0;
+    margin: 1.5em 0;
     font-style: italic;
+    font-size: 1.02em;
+    background: linear-gradient(
+      90deg,
+      rgba(var(--mint), 0.05) 0%,
+      transparent 100%
+    );
   }
+  .prose-notes blockquote p {
+    margin: 0;
+  }
+
+  /* Links */
   .prose-notes a {
     color: rgb(var(--mint-bright));
     text-decoration: underline;
+    text-decoration-color: rgba(var(--mint), 0.4);
     text-underline-offset: 3px;
+    transition: text-decoration-color 0.15s ease;
   }
+  .prose-notes a:hover {
+    text-decoration-color: rgb(var(--mint-bright));
+  }
+
+  /* Tables */
   .prose-notes table {
-    @apply w-full border-collapse mb-4 text-[13px];
+    @apply w-full border-collapse my-6 text-[13.5px];
+    border: 1px solid rgba(var(--border), 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .prose-notes thead {
+    background: rgb(var(--bg-subtle));
   }
   .prose-notes th,
   .prose-notes td {
-    border: 1px solid rgba(var(--border), 0.08);
-    padding: 8px 10px;
+    border-right: 1px solid rgba(var(--border), 0.06);
+    border-bottom: 1px solid rgba(var(--border), 0.06);
+    padding: 10px 14px;
     text-align: left;
+    vertical-align: top;
+  }
+  .prose-notes th:last-child,
+  .prose-notes td:last-child {
+    border-right: 0;
+  }
+  .prose-notes tr:last-child td {
+    border-bottom: 0;
   }
   .prose-notes th {
-    background: rgb(var(--bg-subtle));
     color: rgb(var(--fg));
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 11.5px;
   }
+  .prose-notes tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
   .prose-notes hr {
-    border-color: rgba(var(--border), 0.08);
-    margin: 24px 0;
+    border: 0;
+    border-top: 1px solid rgba(var(--border), 0.08);
+    margin: 2.5em 0;
   }
+
   .prose-notes img {
-    @apply rounded-lg max-w-full h-auto my-3;
+    @apply rounded-xl max-w-full h-auto my-6;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  /* KaTeX-style math containers */
+  .prose-notes .math,
+  .prose-notes .katex-display {
+    overflow-x: auto;
+    padding: 8px 0;
+  }
+
+  /* Highlight callouts (Notion-style) */
+  .prose-notes .callout,
+  .prose-notes [data-callout] {
+    border: 1px solid rgba(var(--mint), 0.2);
+    background: rgba(var(--mint), 0.04);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin: 1.5em 0;
   }
 }
 
