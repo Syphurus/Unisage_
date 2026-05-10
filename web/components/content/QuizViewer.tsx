@@ -29,43 +29,133 @@ interface QuizViewerProps {
   subjectCode?: string;
 }
 
+/**
+ * Extract a flat list of QuizQuestion from whatever shape the admin stored.
+ * Supported shapes (any of these can appear inside `data`):
+ *   { questions: [{ question, options: [{text,isCorrect}|string], correctAnswer? }] }
+ *   { questions: [{ question, options: [...], correct_option: "B" or "0" or 0 }] }
+ *   { mini_quizzes: [{ questions: [...] }, ...] }
+ *   { unit_quiz: { questions: [...] } }
+ *   { true_false: { questions: [{ statement, answer: true|false }] } }
+ *   { fill_in_blanks: { questions: [{ prompt, answer, acceptable_answers? }] } }
+ *   { question, options, correct_answer }                  (flat single)
+ * Stringified JSON in data is also handled.
+ */
 function extractQuestions(contentItems: Content[]): QuizQuestion[] {
-  const result: QuizQuestion[] = [];
-  for (const item of contentItems) {
-    const d = item.data as any;
-    if (d?.questions && Array.isArray(d.questions)) {
-      for (const q of d.questions) {
-        const opts: string[] = [];
-        let correctIdx = 0;
-        if (Array.isArray(q.options)) {
-          q.options.forEach((o: { text: string; isCorrect: boolean } | string, i: number) => {
-            if (typeof o === "string") {
-              opts.push(o);
-            } else {
-              opts.push(o.text);
-              if (o.isCorrect) correctIdx = i;
-            }
-          });
+  const out: QuizQuestion[] = [];
+
+  const letterToIndex = (s: string): number | null => {
+    if (!s) return null;
+    const ch = s.trim().toUpperCase().charAt(0);
+    if (ch >= "A" && ch <= "Z") return ch.charCodeAt(0) - 65;
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const pushQuestion = (q: any) => {
+    if (!q || typeof q !== "object") return;
+    const questionText: string =
+      q.question ?? q.statement ?? q.prompt ?? q.title ?? q.text ?? "";
+    if (!questionText) return;
+
+    let opts: string[] = [];
+    let correctIndex = 0;
+
+    if (Array.isArray(q.options) && q.options.length > 0) {
+      q.options.forEach((o: any, i: number) => {
+        if (typeof o === "string") {
+          opts.push(o);
+        } else if (o && typeof o === "object") {
+          opts.push(o.text ?? o.label ?? o.value ?? String(o));
+          if (o.isCorrect || o.correct === true) correctIndex = i;
         }
-        result.push({
-          question: q.question || "",
-          options: opts,
-          correctIndex: q.correctAnswer ?? q.correct_answer ?? q.correctIndex ?? correctIdx,
-          explanation: q.explanation,
-        });
-      }
-    } else if (d?.question) {
-      result.push({
-        question: d.question,
-        options: Array.isArray(d.options)
-          ? d.options.map((o: string | { text: string }) => (typeof o === "string" ? o : o.text))
-          : [],
-        correctIndex: d.correct_answer ?? d.correctAnswer ?? 0,
-        explanation: d.explanation,
       });
+      // Resolve correct answer if it wasn't marked on options
+      if (q.correct_option !== undefined) {
+        const idx = letterToIndex(String(q.correct_option));
+        if (idx !== null) correctIndex = idx;
+        // also support "matches the text"
+        const matchIdx = opts.findIndex(
+          (t) =>
+            t &&
+            (t === q.correct_option || t.endsWith(String(q.correct_option))),
+        );
+        if (matchIdx >= 0) correctIndex = matchIdx;
+      }
+      if (typeof q.correctAnswer === "number") correctIndex = q.correctAnswer;
+      if (typeof q.correct_answer === "number") correctIndex = q.correct_answer;
+      if (typeof q.correctIndex === "number") correctIndex = q.correctIndex;
+    } else if (q.answer !== undefined && (q.statement || q.prompt)) {
+      // True/False
+      opts = ["True", "False"];
+      correctIndex =
+        q.answer === true || String(q.answer).toLowerCase() === "true" ? 0 : 1;
+    } else if (q.answer !== undefined) {
+      // Fill in the blanks — render answer + acceptable as choices, answer first
+      const answer = String(q.answer);
+      const acc: string[] = Array.isArray(q.acceptable_answers)
+        ? q.acceptable_answers.filter((a: any) => a && String(a) !== answer)
+        : [];
+      opts = [answer, ...acc.map(String)];
+      correctIndex = 0;
     }
+
+    if (opts.length === 0) return;
+    out.push({
+      question: questionText,
+      options: opts,
+      correctIndex,
+      explanation: q.explanation,
+    });
+  };
+
+  const visit = (data: any) => {
+    if (!data) return;
+    // Strings: try to JSON.parse
+    if (typeof data === "string") {
+      try {
+        return visit(JSON.parse(data));
+      } catch {
+        return;
+      }
+    }
+    if (Array.isArray(data)) {
+      data.forEach(visit);
+      return;
+    }
+    if (typeof data !== "object") return;
+
+    if (Array.isArray(data.questions)) {
+      data.questions.forEach(pushQuestion);
+    }
+    if (Array.isArray(data.mini_quizzes)) {
+      data.mini_quizzes.forEach((mq: any) =>
+        Array.isArray(mq?.questions) ? mq.questions.forEach(pushQuestion) : null,
+      );
+    }
+    if (data.unit_quiz?.questions) {
+      data.unit_quiz.questions.forEach(pushQuestion);
+    }
+    if (data.true_false?.questions) {
+      data.true_false.questions.forEach(pushQuestion);
+    }
+    if (data.fill_in_blanks?.questions) {
+      data.fill_in_blanks.questions.forEach(pushQuestion);
+    }
+    // Flat single question (no questions[] wrapper)
+    if (
+      data.question !== undefined &&
+      !Array.isArray(data.questions) &&
+      Array.isArray(data.options)
+    ) {
+      pushQuestion(data);
+    }
+  };
+
+  for (const item of contentItems) {
+    visit((item as any).data);
   }
-  return result;
+  return out;
 }
 
 export function QuizViewer({
