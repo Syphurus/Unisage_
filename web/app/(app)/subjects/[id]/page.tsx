@@ -183,15 +183,15 @@ export default function SubjectHubPage({
                 <div>
                   {(() => {
                     if (activeTab === "all") return <p className="caption">All content</p>;
-                    const meta = tabMeta(activeTab as any);
+                    const meta = tabMeta(activeTab as ContentTabId);
                     return <p className="caption">{meta?.sub || ""}</p>;
                   })()}
                   <h2 className="mt-1 text-[22px] lg:text-[26px] font-bold tracking-[-0.005em] text-[rgb(var(--fg))]">
-                    {activeTab === "all" ? "All" : (tabMeta(activeTab as any)?.label || activeTab)}
+                    {activeTab === "all" ? "All" : (tabMeta(activeTab as ContentTabId)?.label || activeTab)}
                   </h2>
                 </div>
                 <p className="text-[12px] text-chalk-500">
-                  {activeTab === "all" ? Object.values(visibleByType).flat().length : (visibleByType[activeTab as any]?.length ?? 0)} item{(activeTab === "all" ? Object.values(visibleByType).flat().length : (visibleByType[activeTab as any]?.length ?? 0)) === 1 ? "" : "s"}
+                  {activeTab === "all" ? Object.values(visibleByType).flat().length : (visibleByType[activeTab as keyof ContentByType]?.length ?? 0)} item{(activeTab === "all" ? Object.values(visibleByType).flat().length : (visibleByType[activeTab as keyof ContentByType]?.length ?? 0)) === 1 ? "" : "s"}
                 </p>
               </div>
 
@@ -203,11 +203,11 @@ export default function SubjectHubPage({
                 </div>
               ) : (
                 <ContentList
-                  type={activeTab}
+                  type={activeTab as ContentTabId}
                   items={
                     activeTab === "all"
                       ? Object.values(visibleByType).flat()
-                      : visibleByType[activeTab as any] || []
+                      : visibleByType[activeTab as keyof ContentByType] || []
                   }
                 />
               )}
