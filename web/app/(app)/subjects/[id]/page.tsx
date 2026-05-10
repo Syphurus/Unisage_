@@ -21,6 +21,7 @@ import {
   SkeletonText,
 } from "@/components/unisage/Skeleton";
 import { tabMeta } from "@/components/unisage/SubjectHub/ContentTabs";
+import type { ContentTabId } from "@/components/unisage/SubjectHub/ContentTabs";
 import { ContentList } from "@/components/unisage/SubjectHub/ContentList";
 import { ChevronLeft, Sparkles, RefreshCw } from "lucide-react";
 import type { Content } from "@/lib/types";
