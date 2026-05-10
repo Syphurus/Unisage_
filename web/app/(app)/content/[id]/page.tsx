@@ -47,18 +47,49 @@ const TYPE_CAPTIONS: Record<string, string> = {
 
 function expandFlashcards(contentItems: Content[]): Content[] {
   const result: Content[] = [];
+  const pushCard = (
+    item: Content,
+    idx: number,
+    front: any,
+    back: any,
+  ) => {
+    const f = typeof front === "string" ? front : front?.text ?? String(front ?? "");
+    const b = typeof back === "string" ? back : back?.text ?? String(back ?? "");
+    if (!f || !b) return;
+    result.push({
+      ...item,
+      id: `${item.id}-${idx}`,
+      data: { front: f, back: b },
+    });
+  };
+
   for (const item of contentItems) {
-    const d = item.data as any;
-    if (d?.items && Array.isArray(d.items)) {
-      d.items.forEach((card: { front: string; back: string }, idx: number) => {
-        result.push({
-          ...item,
-          id: `${item.id}-${idx}`,
-          data: { front: card.front, back: card.back },
-        });
-      });
-    } else if (d?.front && d?.back) {
-      result.push(item);
+    let d: any = item.data;
+    // Stringified JSON
+    if (typeof d === "string") {
+      try {
+        d = JSON.parse(d);
+      } catch {
+        continue;
+      }
+    }
+    if (!d) continue;
+
+    // Common shapes
+    const candidates: any[] =
+      (Array.isArray(d.items) && d.items) ||
+      (Array.isArray(d.flashcards) && d.flashcards) ||
+      (Array.isArray(d.cards) && d.cards) ||
+      [];
+
+    if (candidates.length > 0) {
+      candidates.forEach((card: any, idx: number) =>
+        pushCard(item, idx, card.front ?? card.q ?? card.question, card.back ?? card.a ?? card.answer),
+      );
+    } else if (d.front && d.back) {
+      pushCard(item, 0, d.front, d.back);
+    } else if (d.q && d.a) {
+      pushCard(item, 0, d.q, d.a);
     }
   }
   return result;
