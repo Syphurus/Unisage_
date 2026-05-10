@@ -37,6 +37,7 @@ export function FlashcardViewer({
   backHref,
   title,
   subjectCode,
+  subjectId,
 }: FlashcardViewerProps) {
   const router = useRouter();
   const [cards, setCards] = useState(flashcards);
@@ -114,7 +115,7 @@ export function FlashcardViewer({
       })();
     }
     reviewBatchRef.current = new Map();
-  }, [mutate, subjectCode]);
+  }, [mutate, subjectId]);
 
   const goNext = useCallback(() => {
     if (idx >= cards.length - 1) {
