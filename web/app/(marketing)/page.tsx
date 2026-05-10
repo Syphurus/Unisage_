@@ -18,7 +18,7 @@ const PREDICTED_TOPICS = [
 ];
 
 const STATS = [
-  { value: "127K", label: "students" },
+  { value: "700+", label: "students" },
   { value: "54%", label: "time saved" },
   { value: "2.3×", label: "marks lift" },
 ];
