@@ -1,17 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useSWRConfig } from "swr";
 import { useRouter } from "next/navigation";
-import {
-  ChevronLeft,
-  Check,
-  Trophy,
-  RotateCcw,
-} from "lucide-react";
-import {
-  Pill,
-  PrimaryButton,
-} from "@/components/unisage/primitives";
+import { ChevronLeft, Check, Trophy, RotateCcw } from "lucide-react";
+import { Pill, PrimaryButton } from "@/components/unisage/primitives";
 import type { Content } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { flashcardsAPI } from "@/lib/api";
@@ -29,7 +22,9 @@ interface FlashcardViewerProps {
 // derive the parent contentId + per-card index by parsing the suffix off
 // the synthetic id — that's the contract used by expandFlashcards on the
 // content page.
-function parseSyntheticCard(id: string): { parentId: string; cardIndex: number } | null {
+function parseSyntheticCard(
+  id: string
+): { parentId: string; cardIndex: number } | null {
   const m = id.match(/^(.+)-(\d+)$/);
   if (!m) return null;
   const cardIndex = Number.parseInt(m[2], 10);
@@ -56,7 +51,14 @@ export function FlashcardViewer({
   // session ends. Refs so updates don't trigger re-renders.
   const cardShownAtRef = useRef<number>(0);
   const reviewBatchRef = useRef<
-    Map<string, { cardIndex: number; rating: "forgot" | "shaky" | "confident"; responseMs: number }[]>
+    Map<
+      string,
+      {
+        cardIndex: number;
+        rating: "forgot" | "shaky" | "confident";
+        responseMs: number;
+      }[]
+    >
   >(new Map());
   const persistedRef = useRef(false);
 
@@ -82,6 +84,8 @@ export function FlashcardViewer({
     cardShownAtRef.current = Date.now();
   }, [idx]);
 
+  const { mutate } = useSWRConfig();
+
   const persistReviews = useCallback(() => {
     if (persistedRef.current) return;
     persistedRef.current = true;
@@ -89,11 +93,28 @@ export function FlashcardViewer({
     // content rows when the unit holds several flashcard decks).
     for (const [parentId, batch] of reviewBatchRef.current.entries()) {
       if (batch.length === 0) continue;
-      // best-effort — analytics never blocks UX
-      flashcardsAPI.submitReviews(parentId, batch).catch(() => {});
+      // Persist reviews and then revalidate related caches so UI shows
+      // updated completion immediately. Best-effort — analytics never
+      // blocks UX, but we attempt to trigger SWR mutate on success.
+      (async () => {
+        try {
+          await flashcardsAPI.submitReviews(parentId, batch);
+          // Revalidate global caches used by progress and analytics hooks
+          mutate("progress");
+          if (subjectId) {
+            mutate(`progress-${subjectId}`);
+            mutate(`subject-aggregate-v2-${subjectId}`);
+          }
+          // Revalidate analytics rollup keys too
+          mutate("analytics-me");
+          mutate("analytics-me-subjects");
+        } catch (e) {
+          // swallow — do not block UX on analytics failures
+        }
+      })();
     }
     reviewBatchRef.current = new Map();
-  }, []);
+  }, [mutate, subjectCode]);
 
   const goNext = useCallback(() => {
     if (idx >= cards.length - 1) {
@@ -267,13 +288,12 @@ export function FlashcardViewer({
                 "leading-snug whitespace-pre-wrap",
                 revealed
                   ? "text-[18px] text-[rgb(var(--fg))]"
-                  : "text-[22px] font-semibold text-[rgb(var(--fg))]",
+                  : "text-[22px] font-semibold text-[rgb(var(--fg))]"
               )}
               dangerouslySetInnerHTML={{
                 __html: renderInlineMd(revealed ? back : front),
               }}
             />
-
           </div>
 
           <div className="mt-2 flex items-center justify-between gap-3 pt-4 border-t border-white/[0.05]">
@@ -335,7 +355,7 @@ function Stat({
           "text-[24px] font-bold tabular-nums",
           tone === "mint" && "text-mint",
           tone === "ember" && "text-ember-400",
-          tone === "flame" && "text-flame-500",
+          tone === "flame" && "text-flame-500"
         )}
       >
         {value}
