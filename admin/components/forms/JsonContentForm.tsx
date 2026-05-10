@@ -211,7 +211,9 @@ export function JsonContentForm({
       );
       onSuccess?.();
     } catch (err) {
-      toast.error("An unexpected error occurred");
+      toast.error(
+        err instanceof Error ? err.message : "An unexpected error occurred"
+      );
     } finally {
       setLoading(false);
     }

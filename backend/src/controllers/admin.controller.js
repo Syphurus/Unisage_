@@ -668,6 +668,7 @@ async function createContent(req, res, next) {
     const { data, error } = await supabase
       .from("content")
       .insert({
+        subject_id: resolvedSubjectId,
         unit_id: resolvedUnitId,
         type,
         title: title || null,
@@ -678,7 +679,18 @@ async function createContent(req, res, next) {
       .select()
       .single();
 
-    if (error) throw new Error("Failed to create content");
+    if (error) {
+      logger.error("Create content DB error", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        type,
+        subjectId: resolvedSubjectId,
+        unitId: resolvedUnitId,
+      });
+      throw new ValidationError(error.message || "Failed to create content");
+    }
 
     // Handle file upload for file-backed content types (PYQs, syllabus, assignments)
     if (["pyqs", "syllabus", "assignments"].includes(type) && req.file) {
