@@ -119,9 +119,6 @@ export default function DashboardPage() {
 
       {/* Prep modes */}
       <Section density="compact" className="!py-4">
-        <PageContainer>
-          <MetaCaption className="mb-3">Prep modes · tap to engage</MetaCaption>
-        </PageContainer>
         <div className="px-5 md:px-8 lg:px-10 xl:px-14">
           <div className="flex gap-2.5 lg:gap-3 overflow-x-auto scrollbar-none lg:flex-wrap pb-1 lg:overflow-visible -mx-5 md:-mx-0 px-5 md:px-0">
             {PREP_MODES.map((m) => {
@@ -157,14 +154,7 @@ export default function DashboardPage() {
       <PageContainer>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
           <div className="lg:col-span-2">
-            <HighlightCard
-              caption={
-                <>
-                  <span className="text-mint-400">AI FOCUS</span> · LIVE
-                </>
-              }
-              dot="mint"
-            >
+            <HighlightCard dot={null}>
               <h3 className="text-[18px] md:text-[20px] lg:text-[22px] font-semibold leading-snug text-[rgb(var(--fg))]">
                 {ranked[0]
                   ? `${ranked[0].subject.name} is predicted high-repeat.`
