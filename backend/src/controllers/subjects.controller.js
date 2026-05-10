@@ -6,6 +6,7 @@ const { supabase } = require("../config/database");
 const { NotFoundError } = require("../utils/errors");
 const { cache } = require("../services/content.service");
 const contentService = require("../services/content.service");
+const { stripPremiumGrouped } = require("../modules/entitlements/strip");
 
 /**
  * GET /api/subjects
@@ -216,11 +217,18 @@ async function getSubjectUnitsContent(req, res, next) {
       includeUnpublished: false,
     });
 
+    // Strip premium content (`paper_predictor`) from each unit's grouped content
+    // when the caller lacks the entitlement. Backend is authoritative.
+    const filteredUnits = (units || []).map((u) => ({
+      ...u,
+      content: stripPremiumGrouped(u.content, req.entitlements),
+    }));
+
     res.json({
       success: true,
       data: {
         subject,
-        units,
+        units: filteredUnits,
       },
     });
   } catch (err) {
@@ -240,9 +248,15 @@ async function getSubjectContent(req, res, next) {
       includeUnpublished: false,
     });
 
+    // Strip premium types from grouped content when unentitled.
+    const filtered = {
+      ...result,
+      content: stripPremiumGrouped(result?.content, req.entitlements),
+    };
+
     res.json({
       success: true,
-      data: result,
+      data: filtered,
     });
   } catch (err) {
     next(err);

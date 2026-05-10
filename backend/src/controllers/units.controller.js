@@ -5,6 +5,7 @@
 const { supabase } = require("../config/database");
 const { NotFoundError } = require("../utils/errors");
 const contentService = require("../services/content.service");
+const { stripPremiumGrouped } = require("../modules/entitlements/strip");
 
 /**
  * GET /api/units/:id
@@ -75,7 +76,7 @@ async function getUnitContent(req, res, next) {
       success: true,
       data: {
         unit: { id: unit.id, title: unit.title },
-        content: grouped,
+        content: stripPremiumGrouped(grouped, req.entitlements),
       },
     });
   } catch (err) {

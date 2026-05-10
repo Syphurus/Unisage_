@@ -86,3 +86,101 @@ tracker are preserved but no longer continue to grow falsely.
 called by the web. The new `useStudySession` hook wires these up on
 subject-scoped pages. Existing rows in `study_sessions` (likely empty) are
 preserved.
+
+## Phase A: Payments & Entitlements (2026-05-11)
+
+`2026_05_11_payments_entitlements.sql` — manual UPI payment + entitlement
+gate for Paper Predictor and Analytics.
+
+### Deploy steps
+
+1. **Run the migration** in Supabase SQL Editor (idempotent).
+2. **Create a private storage bucket**:
+   - Supabase dashboard → Storage → **New bucket**
+   - Name: `payment-proofs` (must match `PAYMENT_PROOF_BUCKET` env)
+   - **Public: OFF.** Leaving this on exposes user payment screenshots.
+3. **Set backend env vars** — see `backend/.env.example` for the full list.
+   Required new vars: `UPI_VPA`, `UPI_PAYEE_NAME`. Optional:
+   `PAYMENT_PROOF_BUCKET` (default `payment-proofs`),
+   `PAYMENT_INTENT_TTL_HOURS` (24), `PAYMENT_SUBMISSION_TTL_HOURS` (72),
+   `RUN_BACKGROUND_JOBS` (true).
+4. **Restart the backend.** Expiry jobs start automatically.
+
+### What the migration creates
+
+- Enum `payment_status` (9 states; see §4 of the design doc).
+- Tables: `plans` (seeded with one plan: `unisage_premium_30d` — ₹199, 30 days, covers both `predictor` and `analysis` scopes; any earlier draft plans are auto-deactivated),
+  `payments`, `payment_events` (append-only), `payment_uploads`,
+  `entitlements`, `entitlement_events` (append-only),
+  `payment_idempotency_keys`, `audit_logs` (append-only), `security_events`.
+- Partial unique indexes:
+  - one live UTR per `payments.utr_normalized` while
+    `status IN ('pending_verification','approved')` — DB-level dedup.
+  - one open intent per user while
+    `status IN ('awaiting_submission','pending_verification')`.
+- RPC functions (single-transaction state transitions):
+  `approve_payment`, `reject_payment`, `revoke_payment`, `submit_proof`,
+  `cancel_payment`, `expire_stale_intents`, `expire_stale_submissions`,
+  `expire_old_entitlements`, `purge_expired_idempotency_keys`.
+- Append-only triggers on `payment_events`, `entitlement_events`, `audit_logs`.
+- RLS enabled on every new table; no anon/auth policies → only the
+  service-role can read/write.
+- Auto-seeds `payments.review` and `payments.revoke` permissions onto every
+  `role='admin'` user (handles both `TEXT[]` and `JSONB` column shapes).
+
+### Smoke test (on staging)
+
+```sh
+# 1. List plans
+curl -H "Authorization: Bearer $USER_JWT" /api/payments/plans
+
+# 2. Create intent
+curl -X POST /api/payments/intent \
+  -H "Authorization: Bearer $USER_JWT" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -H 'Content-Type: application/json' \
+  -d '{"planId":"<plan-uuid>"}'
+
+# 3. Submit proof
+curl -X POST /api/payments/<id>/submit \
+  -H "Authorization: Bearer $USER_JWT" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -F 'utr=BANK1234567890' \
+  -F 'proof=@receipt.png'
+
+# 4. Confirm 402 BEFORE approval
+curl -H "Authorization: Bearer $USER_JWT" /api/analytics/me
+# → 402 ENTITLEMENT_REQUIRED
+
+# 5. Admin approves
+curl -X POST /api/admin/payments/<id>/approve \
+  -H "Authorization: Bearer $ADMIN_JWT" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -H "If-Match: 1" \
+  -H 'Content-Type: application/json' \
+  -d '{"expectedVersion":1}'
+
+# 6. Confirm 200 AFTER approval
+curl -H "Authorization: Bearer $USER_JWT" /api/analytics/me
+# → 200
+```
+
+### Rollback
+
+Money may have changed hands. Don't drop tables. Use the API:
+- `POST /api/admin/payments/<id>/revoke` to revoke individual approved payments
+  (preserves audit trail and revokes derived entitlements atomically).
+- For mass revoke: `UPDATE entitlements SET revoked_at = NOW(), revoke_reason='operational rollback' WHERE revoked_at IS NULL;`
+  then call `entitlement.service.invalidateAll()` or restart the backend.
+
+### Operational notes
+
+- **Background jobs** run on the API instance (`setInterval`-based). On
+  horizontal scale-out, set `RUN_BACKGROUND_JOBS=false` on all instances
+  except one.
+- **Signed-URL TTL** for proof viewing is 60s. Admin UI must re-fetch on
+  each view; do not cache the URL.
+- **Auto-seeded permissions** are additive (never remove existing values).
+  Re-running the migration tops up admins who were created after the
+  initial run.
+

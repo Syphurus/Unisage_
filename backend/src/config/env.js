@@ -27,6 +27,8 @@ const REQUIRED_VARS = [
   "SUPABASE_SERVICE_KEY",
   "SUPABASE_ANON_KEY",
   "JWT_SECRET",
+  "UPI_VPA",
+  "UPI_PAYEE_NAME",
 ];
 
 /**
@@ -72,6 +74,18 @@ const env = {
 
   // Logging
   LOG_LEVEL: process.env.LOG_LEVEL || "info",
+
+  // Payments — static UPI manual verification
+  UPI_VPA: process.env.UPI_VPA,
+  UPI_PAYEE_NAME: process.env.UPI_PAYEE_NAME,
+  PAYMENT_PROOF_BUCKET: process.env.PAYMENT_PROOF_BUCKET || "payment-proofs",
+  PAYMENT_INTENT_TTL_HOURS: parseInt(process.env.PAYMENT_INTENT_TTL_HOURS, 10) || 24,
+  PAYMENT_SUBMISSION_TTL_HOURS:
+    parseInt(process.env.PAYMENT_SUBMISSION_TTL_HOURS, 10) || 72,
+
+  // Background jobs: defaults to true. Set RUN_BACKGROUND_JOBS=false on
+  // additional instances when scaling horizontally to avoid duplicate runs.
+  RUN_BACKGROUND_JOBS: process.env.RUN_BACKGROUND_JOBS !== "false",
 
   /** Helper: returns true when running in production */
   get isProduction() {

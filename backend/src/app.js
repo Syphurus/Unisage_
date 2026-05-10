@@ -32,6 +32,9 @@ const analyticsRoutes = require("./routes/analytics.routes");
 const flashcardsRoutes = require("./routes/flashcards.routes");
 const adminRoutes = require("./routes/admin.routes");
 const metaRoutes = require("./routes/meta.routes");
+const paymentRoutes = require("./modules/payments/payment.routes");
+const adminPaymentRoutes = require("./modules/payments/admin.payment.routes");
+const { startJobs } = require("./jobs");
 
 // ──────────────────────────────────────────────
 // Create Express app
@@ -147,6 +150,8 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/flashcards", flashcardsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/meta", metaRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/admin/payments", adminPaymentRoutes);
 
 // ──────────────────────────────────────────────
 // 404 handler for unmatched routes
@@ -176,6 +181,11 @@ app.listen(PORT, () => {
     environment: env.NODE_ENV,
     port: PORT,
   });
+  try {
+    startJobs();
+  } catch (err) {
+    logger.error("Failed to start background jobs", { error: err.message });
+  }
 });
 
 // Handle unhandled promise rejections

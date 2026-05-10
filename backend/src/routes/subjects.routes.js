@@ -11,11 +11,14 @@ const subjectsController = require("../controllers/subjects.controller");
 const validate = require("../middleware/validation");
 const validators = require("../utils/validators");
 const optionalAuth = require("../middleware/optionalAuth");
+const { attachEntitlements } = require("../modules/entitlements/entitlement.middleware");
 
 const router = Router();
 
 // Attach user context when token is present, but keep endpoints public.
 router.use(optionalAuth);
+// Non-blocking: attaches req.entitlements so controllers can strip premium content.
+router.use(attachEntitlements(["predictor"]));
 
 router.get(
   "/",

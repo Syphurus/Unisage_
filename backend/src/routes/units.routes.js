@@ -9,8 +9,14 @@ const { Router } = require("express");
 const unitsController = require("../controllers/units.controller");
 const validate = require("../middleware/validation");
 const validators = require("../utils/validators");
+const optionalAuth = require("../middleware/optionalAuth");
+const { attachEntitlements } = require("../modules/entitlements/entitlement.middleware");
 
 const router = Router();
+
+// Public reads, but we attach entitlement state to support premium-content stripping.
+router.use(optionalAuth);
+router.use(attachEntitlements(["predictor"]));
 
 router.get(
   "/:id",

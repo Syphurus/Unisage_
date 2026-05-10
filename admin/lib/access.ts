@@ -5,6 +5,8 @@ export const adminPermissionOptions = [
   "users.manage",
   "team.manage",
   "analytics.view",
+  "payments.review",
+  "payments.revoke",
 ] as const;
 
 export type AdminPermission = (typeof adminPermissionOptions)[number];
@@ -49,6 +51,10 @@ export function canAccessPath(
     return hasAnyPermission(permissions, ["subjects.manage", "content.manage"]);
   }
 
+  if (pathname.startsWith("/dashboard/payments")) {
+    return hasAnyPermission(permissions, ["payments.review", "payments.revoke"]);
+  }
+
   if (pathname.startsWith("/dashboard")) {
     return hasAnyPermission(permissions, [
       "dashboard.view",
@@ -57,6 +63,8 @@ export function canAccessPath(
       "users.manage",
       "team.manage",
       "analytics.view",
+      "payments.review",
+      "payments.revoke",
     ]);
   }
 

@@ -5,6 +5,13 @@
 const contentService = require("../services/content.service");
 const filesService = require("../services/files.service");
 const logger = require("../utils/logger");
+const {
+  isLockedPredictorContent,
+  PREDICTOR_TYPE,
+} = require("../modules/entitlements/strip");
+const {
+  EntitlementRequiredError,
+} = require("../modules/entitlements/entitlement.middleware");
 
 /**
  * GET /api/content/:id
@@ -14,6 +21,10 @@ async function getContentById(req, res, next) {
   try {
     const { id } = req.params;
     const content = await contentService.getContentById(id);
+
+    if (isLockedPredictorContent(content, req.entitlements)) {
+      return next(new EntitlementRequiredError("predictor"));
+    }
 
     res.json({
       success: true,
@@ -31,6 +42,11 @@ async function getContentById(req, res, next) {
 async function getContentByType(req, res, next) {
   try {
     const { type, page = 1, limit = 20 } = req.query;
+
+    if (type === PREDICTOR_TYPE && !req.entitlements?.predictor) {
+      return next(new EntitlementRequiredError("predictor"));
+    }
+
     const result = await contentService.getContentByType(type, page, limit);
 
     res.json({
