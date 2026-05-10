@@ -4,9 +4,9 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { PhoneFrame, BottomTabBar } from "@/components/unisage/AppShell";
+import { AppShell } from "@/components/unisage/AppShell";
 
-const HIDE_TABS_ROUTES = ["/onboarding", "/retrieval-lab", "/recall"];
+const HIDE_TABS_ROUTES = ["/onboarding"];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -41,11 +41,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   const hideTabs = HIDE_TABS_ROUTES.some((r) => pathname.startsWith(r));
+  const bare = pathname.startsWith("/onboarding");
 
   return (
-    <PhoneFrame>
-      <div className={hideTabs ? "" : "pb-tabs"}>{children}</div>
-      {!hideTabs && <BottomTabBar />}
-    </PhoneFrame>
+    <AppShell hideTabs={hideTabs} bare={bare}>
+      {children}
+    </AppShell>
   );
 }

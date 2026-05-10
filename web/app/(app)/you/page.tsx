@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useSessionStats, useQuizAttempts } from "@/lib/hooks/useProgress";
 import { useTheme } from "@/lib/hooks/useTheme";
-import { TopHeader } from "@/components/unisage/AppShell";
+import { MobileTopBar, PageHeader } from "@/components/unisage/AppShell";
+import { PageContainer, Section } from "@/components/unisage/PageContainer";
 import {
   Pill,
   SectionHeader,
@@ -19,7 +20,6 @@ import {
   Moon,
   Plug,
   Sun,
-  User,
 } from "lucide-react";
 
 export default function YouPage() {
@@ -47,99 +47,110 @@ export default function YouPage() {
 
   return (
     <div className="min-h-screen">
-      <TopHeader title="Profile" showTheme />
+      <MobileTopBar title="Profile" />
 
-      <section className="px-5 md:px-8 lg:px-12">
-        <div className="flex items-start gap-4 lg:gap-6">
-          <span className="grid h-16 w-16 lg:h-20 lg:w-20 place-items-center rounded-[16px] bg-mint-500 text-[24px] lg:text-[28px] font-black text-ink-950">
-            {initials}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[20px] font-bold text-[rgb(var(--fg))]">
-              {user?.fullName || "Guest"}
-            </p>
-            <p className="mt-0.5 text-[12px] text-chalk-400">{meta || "—"}</p>
+      <PageContainer>
+        <Section density="compact" className="!pt-6 md:!pt-10 lg:!pt-14">
+          <PageHeader title="Profile" />
+        </Section>
+      </PageContainer>
+
+      {/* Identity */}
+      <PageContainer>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6 pb-6">
+          <div className="lg:col-span-2 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-7 flex items-start gap-4 lg:gap-5">
+            <span className="grid h-16 w-16 lg:h-20 lg:w-20 shrink-0 place-items-center rounded-[16px] bg-mint-500 text-[24px] lg:text-[28px] font-black text-ink-950">
+              {initials}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[20px] lg:text-[24px] font-bold text-[rgb(var(--fg))]">
+                {user?.fullName || "Guest"}
+              </p>
+              <p className="mt-1 text-[13px] text-chalk-400">{meta || "—"}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Pill>STREAK · {stats?.currentStreak ?? 0}d</Pill>
+                <Pill>
+                  RANK · {(attempts?.length ?? 0) > 0 ? "04" : "—"}
+                </Pill>
+                {user?.email && (
+                  <Pill className="!normal-case !tracking-normal !text-chalk-300">
+                    {user.email}
+                  </Pill>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-1 grid grid-cols-2 gap-3">
+            <StatTile
+              value={`${Math.floor((stats?.totalStudyMinutes ?? 0) / 60)}h`}
+              label="Time"
+            />
+            <StatTile
+              value={stats?.completedContent ?? 0}
+              label="Content"
+            />
+            <StatTile
+              value={`${Math.round(stats?.averageQuizScore ?? 0)}%`}
+              label="Recall"
+              tone="mint"
+            />
+            <StatTile
+              value={stats?.totalSessions ?? 0}
+              label="Sessions"
+            />
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Pill>
-            STREAK · {stats?.currentStreak ?? 0}d
-          </Pill>
-          <Pill>
-            RANK · {(attempts?.length ?? 0) > 0 ? "04" : "—"}
-          </Pill>
-        </div>
-      </section>
+      </PageContainer>
 
-      <div className="lg:px-12 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
-      <section className="px-5 pt-7 md:px-8 lg:px-0">
-        <SectionHeader title="Mission stats" />
-        <div className="mt-3 grid grid-cols-2 gap-3 lg:gap-4">
-          <StatTile
-            value={`${Math.floor((stats?.totalStudyMinutes ?? 0) / 60)}h ${(stats?.totalStudyMinutes ?? 0) % 60}m`}
-            label="Time invested"
-          />
-          <StatTile
-            value={stats?.completedContent ?? 0}
-            label="Content done"
-          />
-          <StatTile
-            value={`${Math.round(stats?.averageQuizScore ?? 0)}%`}
-            label="Avg recall"
-            tone="mint"
-          />
-          <StatTile
-            value={stats?.totalSessions ?? 0}
-            label="Sessions"
-          />
-        </div>
-      </section>
+      {/* Settings */}
+      <PageContainer>
+        <Section density="compact">
+          <SectionHeader title="Settings" />
+          <ul className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <SettingsRow
+              icon={theme === "dark" ? Sun : Moon}
+              title="Theme"
+              subtitle={theme === "dark" ? "Dark" : "Light"}
+              onClick={toggleTheme}
+            />
+            <SettingsRow
+              icon={Bell}
+              title="Notifications"
+              subtitle="Daily 6:00 · enabled"
+            />
+            <SettingsRow
+              icon={GraduationCap}
+              title="Academic profile"
+              subtitle={meta || "Set up"}
+              href="/onboarding"
+            />
+            <SettingsRow
+              icon={Bookmark}
+              title="Bookmarks"
+              subtitle="Saved content"
+              href="/bookmarks"
+            />
+            <SettingsRow
+              icon={Plug}
+              title="Connected accounts"
+              subtitle="Google · UPES SSO"
+            />
+            <SettingsRow
+              icon={LogOut}
+              title="Sign out"
+              subtitle="Log out of UniSage"
+              onClick={logout}
+              destructive
+            />
+          </ul>
+        </Section>
+      </PageContainer>
 
-      <section className="px-5 pt-7 md:px-8 lg:px-0">
-        <SectionHeader title="Settings" />
-        <ul className="mt-3 divide-y divide-white/[0.04] rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))]">
-          <SettingsRow
-            icon={theme === "dark" ? Sun : Moon}
-            title="Theme"
-            subtitle={theme === "dark" ? "Dark" : "Light"}
-            onClick={toggleTheme}
-          />
-          <SettingsRow
-            icon={Bell}
-            title="Notifications"
-            subtitle="Daily 6:00 · enabled"
-          />
-          <SettingsRow
-            icon={GraduationCap}
-            title="Academic profile"
-            subtitle={meta || "Set up"}
-            href="/onboarding"
-          />
-          <SettingsRow
-            icon={Bookmark}
-            title="Bookmarks"
-            subtitle="Saved content"
-            href="/bookmarks"
-          />
-          <SettingsRow
-            icon={Plug}
-            title="Connected accounts"
-            subtitle="Google · UPES SSO"
-          />
-          <SettingsRow
-            icon={LogOut}
-            title="Sign out"
-            subtitle="Log out of UniSage"
-            onClick={logout}
-            destructive
-          />
-        </ul>
-      </section>
-      </div>
-
-      <p className="mt-8 mb-2 text-center text-[10px] uppercase tracking-cap text-chalk-500">
-        UniSage · build v2.6
-      </p>
+      <PageContainer>
+        <p className="py-8 text-center text-[10px] uppercase tracking-cap text-chalk-500">
+          UniSage · build v2.6
+        </p>
+      </PageContainer>
     </div>
   );
 }
@@ -160,9 +171,9 @@ function SettingsRow({
   destructive?: boolean;
 }) {
   const inner = (
-    <div className="flex items-center gap-3 px-4 py-3.5">
+    <div className="flex items-center gap-3 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] px-4 py-4 transition-all hover:border-white/[0.14] hover:bg-[rgb(var(--bg-subtle))]">
       <span
-        className={`grid h-8 w-8 shrink-0 place-items-center rounded-[8px] ${
+        className={`grid h-10 w-10 shrink-0 place-items-center rounded-[10px] ${
           destructive
             ? "bg-flame-500/10 text-flame-500"
             : "bg-white/[0.04] text-chalk-300"
@@ -172,7 +183,7 @@ function SettingsRow({
       </span>
       <div className="min-w-0 flex-1">
         <p
-          className={`text-[14px] font-medium ${destructive ? "text-flame-500" : "text-[rgb(var(--fg))]"}`}
+          className={`text-[14px] font-semibold ${destructive ? "text-flame-500" : "text-[rgb(var(--fg))]"}`}
         >
           {title}
         </p>
@@ -186,7 +197,7 @@ function SettingsRow({
   if (href) {
     return (
       <li>
-        <Link href={href} className="block hover:bg-white/[0.02]">
+        <Link href={href} className="block">
           {inner}
         </Link>
       </li>
@@ -194,10 +205,7 @@ function SettingsRow({
   }
   return (
     <li>
-      <button
-        onClick={onClick}
-        className="block w-full text-left hover:bg-white/[0.02]"
-      >
+      <button onClick={onClick} className="block w-full text-left">
         {inner}
       </button>
     </li>
