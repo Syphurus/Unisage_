@@ -29,20 +29,37 @@ export default function AssignmentsPage() {
     let alive = true;
     setLoading(true);
     Promise.all(
-      subjects.map((s: Subject) => subjectsAPI.getContent(s.id)),
+      subjects.map((s: Subject) =>
+        subjectsAPI
+          .getContent(s.id)
+          .then((res: any) => ({ subject: s, res }))
+          .catch(() => ({ subject: s, res: null })),
+      ),
     ).then((results) => {
       if (!alive) return;
       const all: Content[] = [];
-      results.forEach((res: any) => {
+      results.forEach(({ subject, res }) => {
         const data = res?.data || res;
-        const list = Array.isArray(data?.content)
-          ? data.content
-          : data?.content
-            ? Object.values(data.content).flat()
-            : [];
-        all.push(...(list as Content[]));
+        const list: any[] = Array.isArray(data?.content?.assignments)
+          ? data.content.assignments
+          : [];
+        list.forEach((it) =>
+          all.push({
+            ...it,
+            type: "assignments" as const,
+            unit: it.unit ?? {
+              id: "",
+              title: "",
+              subject: {
+                id: subject.id,
+                name: subject.name,
+                code: subject.code,
+              },
+            },
+          }),
+        );
       });
-      setItems(all.filter((c) => c.type === "assignments"));
+      setItems(all);
       setLoading(false);
     });
     return () => {

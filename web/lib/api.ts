@@ -103,6 +103,17 @@ export const subjectsAPI = {
     api.get<unknown, ApiRes<{ subject: Subject; units: Unit[] }>>(
       `/api/subjects/${id}/units`
     ),
+  getUnitsContent: (id: string) =>
+    api.get<
+      unknown,
+      ApiRes<{
+        subject: Subject;
+        units: Array<{
+          unit: Unit;
+          content: Record<string, Content[]>;
+        }>;
+      }>
+    >(`/api/subjects/${id}/units/content`),
 };
 
 export const metaAPI = {

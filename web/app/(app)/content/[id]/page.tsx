@@ -18,6 +18,7 @@ import {
   AnnotationBlock,
   SectionHeader,
 } from "@/components/unisage/primitives";
+import { ReadingView } from "@/components/unisage/ReadingView";
 import { Filter } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -226,7 +227,7 @@ export default function ContentPage() {
         rightIcon={<Filter className="h-4 w-4" />}
       />
 
-      <div className="px-5 pb-12 md:px-8 lg:px-12 lg:max-w-3xl xl:max-w-4xl lg:mx-auto">
+      <div className="px-5 pb-16 md:px-8 lg:px-10 xl:px-14 lg:max-w-[1280px] mx-auto">
         {(content.type === "long_notes" || content.type === "short_notes") && (
           <NotesView content={content} />
         )}
@@ -254,19 +255,46 @@ export default function ContentPage() {
 // ─────────────────────────────────────────────────────────
 function NotesView({ content }: { content: Content }) {
   const data = content.data as any;
-  const html: string | undefined = data?.html;
+  const htmlRaw: string | undefined = data?.html;
   const text: string | undefined = data?.content;
   const summary: string | undefined = data?.summary || data?.tldr;
 
+  // Compute approx read time from content length
+  const wordCount = (htmlRaw || text || "")
+    .replace(/<[^>]+>/g, " ")
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const minutes = Math.max(1, Math.round(wordCount / 220));
+
+  // Convert plain text to HTML paragraphs if no html provided
+  const html =
+    htmlRaw ||
+    (text
+      ? `<p>${text
+          .split(/\n\n+/)
+          .map((p) => p.replace(/\n/g, "<br/>"))
+          .join("</p><p>")}</p>`
+      : "");
+
+  if (!html) {
+    return (
+      <div className="mt-4 rounded-card border border-dashed border-white/[0.08] py-12 text-center">
+        <p className="text-[13.5px] text-chalk-400">
+          No notes content available yet.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-2">
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Pill variant="mint">↗ {Math.floor(60 + Math.random() * 36)}% repeat</Pill>
-        <Pill>⏱ {Math.floor(8 + Math.random() * 12)} min read</Pill>
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <Pill>⏱ {minutes} min read</Pill>
+        <Pill>{wordCount.toLocaleString()} words</Pill>
+        {content.type === "short_notes" && (
+          <Pill variant="mint">Cheat sheet</Pill>
+        )}
       </div>
-      <p className="caption mb-5">
-        {Math.floor(8 + Math.random() * 8)} marks · expected
-      </p>
 
       {summary && (
         <HighlightCard
@@ -276,21 +304,13 @@ function NotesView({ content }: { content: Content }) {
             </>
           }
           dot="mint"
-          className="mb-6"
+          className="mb-8"
         >
           <p className="text-[14px] leading-relaxed text-chalk-200">{summary}</p>
         </HighlightCard>
       )}
 
-      <div className="prose-notes">
-        {html ? (
-          <HtmlContent html={html} />
-        ) : text ? (
-          <NotesViewerWithTracking content={content} />
-        ) : (
-          <p className="text-chalk-400 text-[13px]">No content yet.</p>
-        )}
-      </div>
+      <ReadingView html={html} />
     </div>
   );
 }
