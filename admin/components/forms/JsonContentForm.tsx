@@ -53,12 +53,37 @@ export function JsonContentForm({
       return;
     }
 
+    // Tolerant JSON parsing — clears the most common copy-paste land mines
+    // (smart quotes from Notion/Word, BOM, trailing commas) before strict
+    // JSON.parse. Each step is reversible, so genuinely-broken JSON still
+    // surfaces a real parse error to the user.
+    const sanitize = (raw: string) => {
+      let s = raw
+        .replace(/^﻿/, "")               // strip BOM
+        .replace(/[‘’‚‛]/g, "'")  // smart single quotes
+        .replace(/[“”„‟]/g, '"')  // smart double quotes
+        .replace(/ /g, " ")              // non-breaking space → space
+        .trim();
+      // Strip a single pair of wrapping backticks/```json fences if pasted
+      // from a chat or doc.
+      s = s
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/, "");
+      // Drop trailing commas before ] or }
+      s = s.replace(/,\s*([\]}])/g, "$1");
+      return s;
+    };
+
     let parsed;
     try {
       parsed = JSON.parse(jsonText);
-    } catch (e) {
-      toast.error("Invalid JSON: " + (e as Error).message);
-      return;
+    } catch {
+      try {
+        parsed = JSON.parse(sanitize(jsonText));
+      } catch (e) {
+        toast.error("Invalid JSON: " + (e as Error).message);
+        return;
+      }
     }
 
     setLoading(true);

@@ -14,10 +14,12 @@ import { api } from "@/lib/api";
 const contentTypes = {
   long_notes: { label: "Long Notes", kind: "notes" },
   short_notes: { label: "Short Notes", kind: "notes" },
+  // Exam tips use the same TipTap + PDF flow as notes — author writes
+  // free-form HTML, viewer renders with the premium reading typography.
+  exam_tips: { label: "Exam Tips", kind: "notes" },
   flashcard: { label: "Flashcards", kind: "json" },
   quiz: { label: "Quizzes", kind: "json" },
   paper_predictor: { label: "Paper Predictor", kind: "json" },
-  exam_tips: { label: "Exam Tips", kind: "json" },
   pyqs: { label: "PYQs", kind: "pyqs" },
   syllabus: { label: "Syllabus", kind: "pyqs" },
   assignments: { label: "Assignments", kind: "pyqs" },
@@ -95,7 +97,7 @@ export default function SubjectContentNewPage() {
           {config.kind === "notes" ? (
             <NotesEditor
               subjectId={subjectId}
-              noteType={type as "long_notes" | "short_notes"}
+              noteType={type as "long_notes" | "short_notes" | "exam_tips"}
               initialData={
                 editingContent
                   ? {
