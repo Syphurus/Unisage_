@@ -41,8 +41,6 @@ const FEATURES = [
   },
 ];
 
-const COLLEGES = ["IIT-D", "BITS", "VIT", "NIT-T", "DTU", "IIIT-H"];
-
 export default function LandingPage() {
   const { toggleTheme, theme } = useTheme();
 
@@ -96,13 +94,12 @@ export default function LandingPage() {
               AI Exam OS · v2.6
             </Pill>
             <h1 className="text-[44px] md:text-[64px] lg:text-[84px] xl:text-[96px] font-bold leading-[1.02] tracking-[-0.025em] text-[rgb(var(--fg))]">
-              Stop revising{" "}
-              <span className="text-chalk-400">everything</span>{" "}
+              Stop revising <span className="text-chalk-400">everything</span>{" "}
               <span className="text-mint">equally.</span>
             </h1>
             <p className="mt-6 max-w-xl text-[16px] lg:text-[18px] leading-[1.6] text-chalk-300">
-              Compressed revision for maximum marks. Predict what repeats,
-              focus on what matters, walk in prepared.
+              Compressed revision for maximum marks. Predict what repeats, focus
+              on what matters, walk in prepared.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
@@ -213,9 +210,7 @@ export default function LandingPage() {
             <h2 className="text-[32px] md:text-[44px] lg:text-[56px] font-bold leading-[1.05] tracking-[-0.02em] text-[rgb(var(--fg))]">
               Built like a study OS,
               <br />
-              <span className="text-chalk-400">
-                not another notes app.
-              </span>
+              <span className="text-chalk-400">not another notes app.</span>
             </h2>
           </div>
           <div className="mt-10 lg:mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
@@ -253,26 +248,6 @@ export default function LandingPage() {
                   {s.body}
                 </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Trusted at */}
-      <section
-        id="trusted"
-        className="relative border-t border-white/[0.04]"
-      >
-        <div className="mx-auto max-w-[1400px] px-5 md:px-8 lg:px-12 py-12 lg:py-16">
-          <MetaCaption className="text-center mb-5">Trusted at</MetaCaption>
-          <div className="flex flex-wrap justify-center gap-2 lg:gap-3">
-            {COLLEGES.map((c) => (
-              <span
-                key={c}
-                className="rounded-pill border border-white/[0.06] bg-[rgb(var(--bg-elev))]/60 px-4 lg:px-6 py-2 lg:py-2.5 text-[12px] lg:text-[14px] font-medium text-chalk-300"
-              >
-                {c}
-              </span>
             ))}
           </div>
         </div>
