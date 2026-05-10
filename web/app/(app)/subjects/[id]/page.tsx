@@ -20,26 +20,25 @@ import {
   Skeleton,
   SkeletonText,
 } from "@/components/unisage/Skeleton";
-import { tabMeta } from "@/components/unisage/SubjectHub/ContentTabs";
+import { tabMeta, type ContentTabId } from "@/components/unisage/SubjectHub/ContentTabs";
 import { ContentList } from "@/components/unisage/SubjectHub/ContentList";
 import { ChevronLeft, Sparkles, RefreshCw } from "lucide-react";
 import type { Content } from "@/lib/types";
 import type { ContentByType } from "@/lib/hooks/useSubjectContent";
 
-export default function SubjectHubPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+type TabType = "all" | ContentTabId;
+
+export default function SubjectHubPage({ params }: { params: { id: string } }) {
   const { subject, isLoading: subjLoading } = useSubject(params.id);
-  const { percentage, completedContent, totalContent } =
-    useSubjectProgress(params.id);
+  const { percentage, completedContent, totalContent } = useSubjectProgress(
+    params.id
+  );
   // Bracket time spent on this subject hub with a server-side session row.
   // The hook handles start/end via fetch-keepalive on unload.
   useStudySession(params.id);
   const { units, byType, isLoading, mutate } = useSubjectContent(params.id);
 
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<TabType>("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -78,7 +77,9 @@ export default function SubjectHubPage({
               className="inline-flex items-center gap-1.5 text-[12px] text-chalk-400 hover:text-[rgb(var(--fg))] transition-colors disabled:opacity-50"
               title="Refresh content"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
+              />
             </button>
           </div>
           {subjLoading ? (
@@ -128,7 +129,11 @@ export default function SubjectHubPage({
                       label="Flashcards"
                     />
                     <StatTile value={byType.quiz.length} label="Quizzes" />
-                    <StatTile value={byType.pyqs.length} label="PYQs" tone="mint" />
+                    <StatTile
+                      value={byType.pyqs.length}
+                      label="PYQs"
+                      tone="mint"
+                    />
                     <StatTile
                       value={byType.assignments.length}
                       label="Assigned"
@@ -172,7 +177,9 @@ export default function SubjectHubPage({
                       className={`relative inline-flex items-center gap-2 px-4 py-3 text-[13px] font-medium ${isActive ? "text-mint-400" : "text-chalk-300"}`}
                     >
                       <span>{t.label}</span>
-                      {isActive && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-mint-400" />}
+                      {isActive && (
+                        <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-mint-400" />
+                      )}
                     </button>
                   );
                 })}
@@ -182,16 +189,27 @@ export default function SubjectHubPage({
               <div className="mb-5 flex items-baseline justify-between gap-2">
                 <div>
                   {(() => {
-                    if (activeTab === "all") return <p className="caption">All content</p>;
-                    const meta = tabMeta(activeTab as any);
+                    if (activeTab === "all")
+                      return <p className="caption">All content</p>;
+                    const meta = tabMeta(activeTab as ContentTabId);
                     return <p className="caption">{meta?.sub || ""}</p>;
                   })()}
                   <h2 className="mt-1 text-[22px] lg:text-[26px] font-bold tracking-[-0.005em] text-[rgb(var(--fg))]">
-                    {activeTab === "all" ? "All" : (tabMeta(activeTab as any)?.label || activeTab)}
+                    {activeTab === "all"
+                      ? "All"
+                      : tabMeta(activeTab as ContentTabId)?.label || activeTab}
                   </h2>
                 </div>
                 <p className="text-[12px] text-chalk-500">
-                  {activeTab === "all" ? Object.values(visibleByType).flat().length : (visibleByType[activeTab as any]?.length ?? 0)} item{(activeTab === "all" ? Object.values(visibleByType).flat().length : (visibleByType[activeTab as any]?.length ?? 0)) === 1 ? "" : "s"}
+                  {activeTab === "all"
+                    ? Object.values(visibleByType).flat().length
+                    : (visibleByType[activeTab as ContentTabId]?.length ?? 0)}{" "}
+                  item
+                  {(activeTab === "all"
+                    ? Object.values(visibleByType).flat().length
+                    : (visibleByType[activeTab as ContentTabId]?.length ?? 0)) === 1
+                    ? ""
+                    : "s"}
                 </p>
               </div>
 
@@ -207,7 +225,7 @@ export default function SubjectHubPage({
                   items={
                     activeTab === "all"
                       ? Object.values(visibleByType).flat()
-                      : visibleByType[activeTab as any] || []
+                      : visibleByType[activeTab as ContentTabId] || []
                   }
                 />
               )}
