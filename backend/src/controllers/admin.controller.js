@@ -665,19 +665,39 @@ async function createContent(req, res, next) {
       }
     }
 
-    const { data, error } = await supabase
+    const baseInsertPayload = {
+      unit_id: resolvedUnitId,
+      type,
+      title: title || null,
+      data: parsedContentData,
+      order_index: orderIndex || 0,
+      is_published: isPublished || false,
+    };
+
+    const insertWithSubjectPayload = {
+      ...baseInsertPayload,
+      subject_id: resolvedSubjectId,
+    };
+
+    let { data, error } = await supabase
       .from("content")
-      .insert({
-        subject_id: resolvedSubjectId,
-        unit_id: resolvedUnitId,
-        type,
-        title: title || null,
-        data: parsedContentData,
-        order_index: orderIndex || 0,
-        is_published: isPublished || false,
-      })
+      .insert(insertWithSubjectPayload)
       .select()
       .single();
+
+    // Some deployed DBs don't have content.subject_id.
+    // Retry insert with unit_id-only payload for backward compatibility.
+    if (
+      error &&
+      typeof error.message === "string" &&
+      error.message.includes("Could not find the 'subject_id' column")
+    ) {
+      ({ data, error } = await supabase
+        .from("content")
+        .insert(baseInsertPayload)
+        .select()
+        .single());
+    }
 
     if (error) {
       logger.error("Create content DB error", {
