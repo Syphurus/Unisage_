@@ -709,6 +709,19 @@ async function createContent(req, res, next) {
         subjectId: resolvedSubjectId,
         unitId: resolvedUnitId,
       });
+
+      if (
+        type === "paper_predictor" &&
+        typeof error.message === "string" &&
+        error.message.includes(
+          'invalid input value for enum content_type: "paper_predictor"'
+        )
+      ) {
+        throw new ValidationError(
+          "Database enum content_type is missing 'paper_predictor'. Run migration backend/database/migrations/20260510_add_paper_predictor_enum.sql and retry."
+        );
+      }
+
       throw new ValidationError(error.message || "Failed to create content");
     }
 
