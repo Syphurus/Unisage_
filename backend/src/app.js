@@ -163,13 +163,13 @@ app.use("/api/bookmarks", bookmarksRoutes);
 app.use("/api/sessions", sessionsRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/flashcards", flashcardsRoutes);
+app.use("/api/admin/coupons", adminCouponRoutes);
+app.use("/api/admin/payments", adminPaymentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/meta", metaRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/payments", paymentRoutes);
-app.use("/api/admin/payments", adminPaymentRoutes);
-app.use("/api/admin/coupons", adminCouponRoutes);
 
 // ──────────────────────────────────────────────
 // 404 handler for unmatched routes
