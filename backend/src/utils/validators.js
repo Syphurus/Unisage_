@@ -458,6 +458,9 @@ const adminPermissionValues = [
   "users.manage",
   "team.manage",
   "analytics.view",
+  "coupons.manage",
+  "payments.review",
+  "payments.revoke",
 ];
 
 const adminUserQuery = {

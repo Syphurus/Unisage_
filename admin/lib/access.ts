@@ -5,6 +5,7 @@ export const adminPermissionOptions = [
   "users.manage",
   "team.manage",
   "analytics.view",
+  "coupons.manage",
   "payments.review",
   "payments.revoke",
 ] as const;
@@ -55,6 +56,10 @@ export function canAccessPath(
     return hasAnyPermission(permissions, ["payments.review", "payments.revoke"]);
   }
 
+  if (pathname.startsWith("/dashboard/coupons")) {
+    return hasAnyPermission(permissions, ["coupons.manage"]);
+  }
+
   if (pathname.startsWith("/dashboard")) {
     return hasAnyPermission(permissions, [
       "dashboard.view",
@@ -63,6 +68,7 @@ export function canAccessPath(
       "users.manage",
       "team.manage",
       "analytics.view",
+      "coupons.manage",
       "payments.review",
       "payments.revoke",
     ]);

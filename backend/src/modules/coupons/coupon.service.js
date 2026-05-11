@@ -7,7 +7,11 @@
  */
 
 const { supabase } = require("../../config/database");
-const { ValidationError, NotFoundError } = require("../../utils/errors");
+const {
+  ConflictError,
+  ValidationError,
+  NotFoundError,
+} = require("../../utils/errors");
 
 const COUPON_CODE_PATTERN = /^[A-Z0-9][A-Z0-9_-]{2,31}$/;
 
@@ -210,6 +214,178 @@ async function redeemCouponReservation({ paymentId }) {
   return data;
 }
 
+function serializeCouponRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    code: row.code,
+    type: row.type,
+    value: Number(row.value),
+    maxDiscountInrPaise: row.max_discount_inr_paise,
+    maxDiscount: row.max_discount_inr_paise === null ? null : formatInrPaise(row.max_discount_inr_paise),
+    minPurchaseInrPaise: row.min_purchase_inr_paise,
+    minPurchase: formatInrPaise(row.min_purchase_inr_paise),
+    usageLimit: row.usage_limit,
+    usedCount: row.used_count,
+    perUserUsageLimit: row.per_user_usage_limit,
+    allowedEmailDomains: row.allowed_email_domains || [],
+    firstPurchaseOnly: row.first_purchase_only,
+    active: row.active,
+    expiresAt: row.expires_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function couponPayload(input) {
+  const payload = {};
+  if (input.code !== undefined) payload.code = normalizeCouponCode(input.code);
+  if (input.type !== undefined) payload.type = input.type;
+  if (input.value !== undefined) payload.value = input.value;
+  if (input.maxDiscountInrPaise !== undefined) {
+    payload.max_discount_inr_paise = input.maxDiscountInrPaise;
+  }
+  if (input.minPurchaseInrPaise !== undefined) {
+    payload.min_purchase_inr_paise = input.minPurchaseInrPaise;
+  }
+  if (input.usageLimit !== undefined) payload.usage_limit = input.usageLimit;
+  if (input.perUserUsageLimit !== undefined) {
+    payload.per_user_usage_limit = input.perUserUsageLimit;
+  }
+  if (input.allowedEmailDomains !== undefined) {
+    payload.allowed_email_domains = input.allowedEmailDomains;
+  }
+  if (input.firstPurchaseOnly !== undefined) {
+    payload.first_purchase_only = input.firstPurchaseOnly;
+  }
+  if (input.active !== undefined) payload.active = input.active;
+  if (input.expiresAt !== undefined) payload.expires_at = input.expiresAt;
+  return payload;
+}
+
+function mapCouponWriteError(error) {
+  if (error?.code === "23505") {
+    return new ConflictError("A coupon with this code already exists");
+  }
+  if (error?.code === "23514") {
+    return new ValidationError("Coupon fields failed database validation");
+  }
+  return error;
+}
+
+async function adminListCoupons({ status = "all", query = "", limit = 50, offset = 0 }) {
+  let q = supabase
+    .from("coupons")
+    .select("*", { count: "exact" });
+
+  const nowIso = new Date().toISOString();
+  if (status === "active") q = q.eq("active", true).or(`expires_at.is.null,expires_at.gt.${nowIso}`);
+  if (status === "inactive") q = q.eq("active", false);
+  if (status === "expired") q = q.not("expires_at", "is", null).lte("expires_at", nowIso);
+
+  const trimmed = String(query || "").trim();
+  if (trimmed) {
+    const escaped = trimmed.replace(/[%_]/g, "\\$&").toUpperCase();
+    q = q.ilike("code", `%${escaped}%`);
+  }
+
+  q = q.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+  const { data, error, count } = await q;
+  if (error) throw error;
+  return { rows: (data || []).map(serializeCouponRow), total: count || 0 };
+}
+
+async function adminCreateCoupon(input) {
+  const payload = couponPayload(input);
+  const { data, error } = await supabase
+    .from("coupons")
+    .insert(payload)
+    .select("*")
+    .single();
+  if (error) throw mapCouponWriteError(error);
+  return serializeCouponRow(data);
+}
+
+async function adminUpdateCoupon({ couponId, input }) {
+  const payload = couponPayload(input);
+  const { data, error } = await supabase
+    .from("coupons")
+    .update(payload)
+    .eq("id", couponId)
+    .select("*")
+    .maybeSingle();
+  if (error) throw mapCouponWriteError(error);
+  if (!data) throw new NotFoundError("Coupon");
+  return serializeCouponRow(data);
+}
+
+async function adminGetCoupon(couponId) {
+  const { data, error } = await supabase
+    .from("coupons")
+    .select("*")
+    .eq("id", couponId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new NotFoundError("Coupon");
+
+  const { data: statsRows, error: statsError } = await supabase
+    .from("coupon_redemptions")
+    .select("status, discount_inr_paise")
+    .eq("coupon_id", couponId);
+  if (statsError) throw statsError;
+
+  const stats = (statsRows || []).reduce(
+    (acc, row) => {
+      acc.total += 1;
+      acc[row.status] = (acc[row.status] || 0) + 1;
+      if (row.status === "redeemed") {
+        acc.redeemedDiscountInrPaise += Number(row.discount_inr_paise || 0);
+      }
+      return acc;
+    },
+    { total: 0, reserved: 0, redeemed: 0, released: 0, redeemedDiscountInrPaise: 0 }
+  );
+
+  return {
+    coupon: serializeCouponRow(data),
+    stats: {
+      ...stats,
+      redeemedDiscount: formatInrPaise(stats.redeemedDiscountInrPaise),
+    },
+  };
+}
+
+async function adminListRedemptions({ couponId, limit = 100, offset = 0 }) {
+  const { data, error, count } = await supabase
+    .from("coupon_redemptions")
+    .select(
+      "id, coupon_id, user_id, payment_id, discount_inr_paise, status, reserved_at, redeemed_at, released_at, release_reason, created_at",
+      { count: "exact" }
+    )
+    .eq("coupon_id", couponId)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) throw error;
+
+  return {
+    rows: (data || []).map((row) => ({
+      id: row.id,
+      couponId: row.coupon_id,
+      userId: row.user_id,
+      paymentId: row.payment_id,
+      discountInrPaise: row.discount_inr_paise,
+      discount: formatInrPaise(row.discount_inr_paise),
+      status: row.status,
+      reservedAt: row.reserved_at,
+      redeemedAt: row.redeemed_at,
+      releasedAt: row.released_at,
+      releaseReason: row.release_reason,
+      createdAt: row.created_at,
+    })),
+    total: count || 0,
+  };
+}
+
 module.exports = {
   normalizeCouponCode,
   formatInrPaise,
@@ -218,4 +394,9 @@ module.exports = {
   reserveCouponForPayment,
   releaseCouponReservations,
   redeemCouponReservation,
+  adminListCoupons,
+  adminCreateCoupon,
+  adminUpdateCoupon,
+  adminGetCoupon,
+  adminListRedemptions,
 };

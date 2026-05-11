@@ -94,7 +94,8 @@ gate for Paper Predictor and Analytics.
 
 `20260512_custom_coupons.sql` — application-owned coupons for Razorpay checkout.
 Adds `coupons`, `coupon_redemptions`, payment coupon fields, atomic reservation
-RPCs, and sample coupons (`SAVE50`, `FIRST100`, `UPES25`).
+RPCs, admin `coupons.manage` permission, and sample coupons (`SAVE50`,
+`FIRST100`, `UPES25`).
 
 ### Deploy steps
 

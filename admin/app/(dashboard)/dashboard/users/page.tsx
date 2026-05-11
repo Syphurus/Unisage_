@@ -105,6 +105,9 @@ const PERMISSION_HELPERS: Record<string, string> = {
   "users.manage": "Manage student accounts",
   "team.manage": "Manage team members and permissions",
   "analytics.view": "View analytics",
+  "coupons.manage": "Create and regulate coupons",
+  "payments.review": "Review payments",
+  "payments.revoke": "Revoke payments",
 };
 
 function getDefaultForm(section: SectionKey): FormState {
