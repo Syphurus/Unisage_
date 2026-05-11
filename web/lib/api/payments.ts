@@ -79,10 +79,28 @@ export interface RazorpayOrderResponse {
   keyId: string;
   name: string;
   description: string;
+  pricing: PaymentPricing;
   prefill: {
     name: string;
     email: string;
   };
+}
+
+export interface PaymentPricing {
+  originalAmountPaise: number;
+  originalAmount: string;
+  discountPaise: number;
+  discount: string;
+  finalAmountPaise: number;
+  finalAmount: string;
+  couponCode: string | null;
+}
+
+export interface CouponValidationResponse extends PaymentPricing {
+  valid: boolean;
+  couponId?: string;
+  couponCode: string;
+  message: string;
 }
 
 export interface RazorpayVerifyResponse {
@@ -174,9 +192,14 @@ export const paymentsApi = {
       idempotencyKey: newIdempotencyKey(),
     }),
 
-  createRazorpayOrder: (planId: string) =>
+  validateCoupon: (planId: string, couponCode: string) =>
+    request<CouponValidationResponse>("POST", "/api/coupons/validate", {
+      body: { planId, couponCode },
+    }),
+
+  createRazorpayOrder: (planId: string, couponCode?: string | null) =>
     request<RazorpayOrderResponse>("POST", "/api/payments/create-order", {
-      body: { planId },
+      body: { planId, couponCode: couponCode || undefined },
       idempotencyKey: newIdempotencyKey(),
     }),
 

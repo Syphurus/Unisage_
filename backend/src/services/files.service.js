@@ -6,6 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const { randomUUID } = require("crypto");
 const { supabase } = require("../config/database");
+const env = require("../config/env");
 const logger = require("../utils/logger");
 const { NotFoundError, ValidationError } = require("../utils/errors");
 
@@ -29,12 +30,27 @@ async function saveFile(fileBuffer, originalFilename, mimeType, contentId) {
   try {
     const fileId = randomUUID();
     const fileExtension = path.extname(originalFilename);
-    const storedFilename = `${fileId}${fileExtension}`;
-    const filePath = path.join(FILES_DIR, storedFilename);
-
-    // Write file to disk
-    fs.writeFileSync(filePath, fileBuffer);
+    const storedFilename = `content/${contentId}/${fileId}${fileExtension}`;
     const fileSize = Buffer.byteLength(fileBuffer);
+
+    const { error: uploadError } = await supabase.storage
+      .from(env.CONTENT_FILE_BUCKET)
+      .upload(storedFilename, fileBuffer, {
+        contentType: mimeType || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      logger.error("Failed to upload file to Supabase Storage", {
+        contentId,
+        bucket: env.CONTENT_FILE_BUCKET,
+        key: storedFilename,
+        error: uploadError.message,
+      });
+      throw new Error(
+        `Failed to upload file to storage bucket '${env.CONTENT_FILE_BUCKET}'`
+      );
+    }
 
     // Store metadata in database
     const { data, error } = await supabase
@@ -52,8 +68,8 @@ async function saveFile(fileBuffer, originalFilename, mimeType, contentId) {
       .single();
 
     if (error) {
-      // Clean up file if DB insert fails
-      fs.unlinkSync(filePath);
+      // Clean up storage object if DB insert fails
+      await supabase.storage.from(env.CONTENT_FILE_BUCKET).remove([storedFilename]);
       throw error;
     }
 
@@ -62,6 +78,7 @@ async function saveFile(fileBuffer, originalFilename, mimeType, contentId) {
       originalFilename,
       fileSize,
       contentId,
+      bucket: env.CONTENT_FILE_BUCKET,
     });
 
     return {
@@ -105,12 +122,29 @@ async function getFileMetadata(fileId) {
  */
 async function getFileBuffer(storedFilename) {
   try {
+    const { data, error } = await supabase.storage
+      .from(env.CONTENT_FILE_BUCKET)
+      .download(storedFilename);
+
+    if (!error && data) {
+      return Buffer.from(await data.arrayBuffer());
+    }
+
+    logger.warn("Supabase Storage download failed; checking legacy disk file", {
+      bucket: env.CONTENT_FILE_BUCKET,
+      key: storedFilename,
+      error: error?.message,
+    });
+
     const filePath = path.join(FILES_DIR, storedFilename);
 
     // Security check: ensure the resolved path is within FILES_DIR
     const resolvedPath = path.resolve(filePath);
     const resolvedDir = path.resolve(FILES_DIR);
-    if (!resolvedPath.startsWith(resolvedDir)) {
+    if (
+      resolvedPath !== resolvedDir &&
+      !resolvedPath.startsWith(`${resolvedDir}${path.sep}`)
+    ) {
       throw new ValidationError("Invalid file path");
     }
 
@@ -144,9 +178,14 @@ async function deleteFile(fileId) {
     const filePath = path.join(FILES_DIR, metadata.file_path);
     const resolvedPath = path.resolve(filePath);
     const resolvedDir = path.resolve(FILES_DIR);
-    if (!resolvedPath.startsWith(resolvedDir)) {
+    if (
+      resolvedPath !== resolvedDir &&
+      !resolvedPath.startsWith(`${resolvedDir}${path.sep}`)
+    ) {
       throw new Error("Invalid file path");
     }
+
+    await supabase.storage.from(env.CONTENT_FILE_BUCKET).remove([metadata.file_path]);
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);

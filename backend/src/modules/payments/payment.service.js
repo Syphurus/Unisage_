@@ -22,6 +22,7 @@ const {
 const providerRegistry = require("./providers");
 const entitlementService = require("../entitlements/entitlement.service");
 const audit = require("../audit/audit.service");
+const couponService = require("../coupons/coupon.service");
 
 const REFERENCE_CODE_LENGTH = 12;
 const MIN_RAZORPAY_AMOUNT_PAISE = 100;
@@ -72,6 +73,11 @@ async function cancelOpenPaymentsForNewCheckout({ userId, req }) {
     })
     .in("id", ids);
   if (updateError) throw updateError;
+
+  await couponService.releaseCouponReservations({
+    paymentIds: ids,
+    reason: "superseded_by_new_checkout",
+  });
 
   const { error: eventError } = await supabase.from("payment_events").insert(
     openRows.map((row) => ({
@@ -166,6 +172,7 @@ async function createIntent({ user, planId, req }) {
     reference_code: referenceCode,
     user_id: user.id,
     plan_id: plan.id,
+    original_amount_inr_paise: plan.amount_inr_paise,
     amount_inr_paise: plan.amount_inr_paise,
     scopes: plan.scopes,
     duration_days: plan.duration_days,
@@ -244,9 +251,16 @@ async function createIntent({ user, planId, req }) {
 // ────────────────────────────────────────────────────────────
 // Razorpay Standard Checkout
 // ────────────────────────────────────────────────────────────
-async function createRazorpayOrder({ user, planId, req }) {
+async function createRazorpayOrder({ user, planId, couponCode, req }) {
   const plan = await getPlanById(planId);
-  if (plan.amount_inr_paise < MIN_RAZORPAY_AMOUNT_PAISE) {
+  const couponQuote = couponCode
+    ? await couponService.assertValidCouponQuote({ user, planId, couponCode })
+    : null;
+  const originalAmountPaise = Number(plan.amount_inr_paise);
+  const discountPaise = couponQuote?.discountPaise || 0;
+  const finalAmountPaise = Math.max(0, originalAmountPaise - discountPaise);
+
+  if (finalAmountPaise < MIN_RAZORPAY_AMOUNT_PAISE) {
     throw new ValidationError("Amount must be at least 100 paise");
   }
 
@@ -262,7 +276,11 @@ async function createRazorpayOrder({ user, planId, req }) {
     reference_code: referenceCode,
     user_id: user.id,
     plan_id: plan.id,
-    amount_inr_paise: plan.amount_inr_paise,
+    original_amount_inr_paise: originalAmountPaise,
+    coupon_id: couponQuote?.couponId || null,
+    coupon_code: couponQuote?.couponCode || null,
+    coupon_discount_inr_paise: discountPaise,
+    amount_inr_paise: finalAmountPaise,
     scopes: plan.scopes,
     duration_days: plan.duration_days,
     provider: "razorpay",
@@ -298,14 +316,24 @@ async function createRazorpayOrder({ user, planId, req }) {
   }
 
   try {
+    if (couponQuote) {
+      await couponService.reserveCouponForPayment({
+        couponId: couponQuote.couponId,
+        paymentId: inserted.id,
+        userId: user.id,
+        discountPaise,
+      });
+    }
+
     const order = await getRazorpayClient().orders.create({
-      amount: plan.amount_inr_paise,
+      amount: finalAmountPaise,
       currency: "INR",
       receipt: referenceCode,
       notes: {
         payment_id: inserted.id,
         user_id: user.id,
         plan_id: plan.id,
+        coupon_code: couponQuote?.couponCode || "",
       },
     });
 
@@ -316,7 +344,14 @@ async function createRazorpayOrder({ user, planId, req }) {
         to_status: "awaiting_submission",
         actor_type: "user",
         actor_id: user.id,
-        metadata: { plan_code: plan.code, reference_code: referenceCode },
+        metadata: {
+          plan_code: plan.code,
+          reference_code: referenceCode,
+          coupon_code: couponQuote?.couponCode || null,
+          original_amount: originalAmountPaise,
+          discount: discountPaise,
+          final_amount: finalAmountPaise,
+        },
       },
       {
         payment_id: inserted.id,
@@ -341,6 +376,9 @@ async function createRazorpayOrder({ user, planId, req }) {
         planId: plan.id,
         referenceCode,
         razorpayOrderId: order.id,
+        couponCode: couponQuote?.couponCode || null,
+        discountPaise,
+        finalAmountPaise,
       },
     });
 
@@ -352,12 +390,26 @@ async function createRazorpayOrder({ user, planId, req }) {
       keyId: env.RAZORPAY_KEY_ID,
       name: "UniSage Premium",
       description: plan.name,
+      pricing: {
+        originalAmountPaise,
+        originalAmount: couponService.formatInrPaise(originalAmountPaise),
+        discountPaise,
+        discount: couponService.formatInrPaise(discountPaise),
+        finalAmountPaise,
+        finalAmount: couponService.formatInrPaise(finalAmountPaise),
+        couponCode: couponQuote?.couponCode || null,
+      },
       prefill: {
         name: user.full_name || user.fullName || "",
         email: user.email || "",
       },
     };
   } catch (err) {
+    await couponService.releaseCouponReservations({
+      paymentIds: [inserted.id],
+      reason: "razorpay_order_failed",
+    });
+
     await supabase
       .from("payments")
       .update({ status: "cancelled", version: inserted.version + 1 })
@@ -449,6 +501,8 @@ async function verifyRazorpayPayment({
     razorpayPaymentId,
     req,
   });
+
+  await couponService.redeemCouponReservation({ paymentId: payment.id });
 
   entitlementService.invalidateUser(user.id);
   return {
@@ -544,6 +598,11 @@ async function cancel({ user, paymentId, req }) {
   });
   if (error) throw mapPgError(error, "Failed to cancel payment");
 
+  await couponService.releaseCouponReservations({
+    paymentIds: [paymentId],
+    reason: "user_cancelled_payment",
+  });
+
   audit.recordSafe({
     ...audit.fromReq(req),
     action: "payment.cancelled",
@@ -561,6 +620,11 @@ async function adminCancel({ admin, paymentId, expectedVersion, req }) {
     p_expected_version: expectedVersion,
   });
   if (error) throw mapPgError(error, "Failed to cancel payment");
+
+  await couponService.releaseCouponReservations({
+    paymentIds: [paymentId],
+    reason: "admin_cancelled_payment",
+  });
 
   await audit.record({
     ...audit.fromReq(req),

@@ -92,6 +92,10 @@ preserved.
 `2026_05_11_payments_entitlements.sql` — manual UPI payment + entitlement
 gate for Paper Predictor and Analytics.
 
+`20260512_custom_coupons.sql` — application-owned coupons for Razorpay checkout.
+Adds `coupons`, `coupon_redemptions`, payment coupon fields, atomic reservation
+RPCs, and sample coupons (`SAVE50`, `FIRST100`, `UPES25`).
+
 ### Deploy steps
 
 1. **Run the migration** in Supabase SQL Editor (idempotent).
@@ -183,4 +187,3 @@ Money may have changed hands. Don't drop tables. Use the API:
 - **Auto-seeded permissions** are additive (never remove existing values).
   Re-running the migration tops up admins who were created after the
   initial run.
-
