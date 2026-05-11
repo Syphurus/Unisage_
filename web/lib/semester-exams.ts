@@ -126,6 +126,17 @@ function isSpecializationSubject(subject: Subject) {
   );
 }
 
+function hasSupportedSpecialization(
+  subjects: Subject[],
+  specialization?: string | null,
+  branchCode?: string | null,
+) {
+  if (!specialization) return false;
+  return subjects.some((subject) =>
+    !isSem4CoreSubject(subject) && matchesProgram(subject, specialization, branchCode),
+  );
+}
+
 export function examSubjectsForStudent(
   subjects: Subject[],
   specialization?: string | null,
@@ -139,13 +150,12 @@ export function examSubjectsForStudent(
   if (specializationPool.length === 0) return requiredSubjects.slice(0, 5);
 
   const selectedSpecialization =
-    specialization &&
+    hasSupportedSpecialization(subjects, specialization, branchCode) &&
     specializationPool.find((subject) =>
       matchesProgram(subject, specialization, branchCode),
     );
 
-  return [...requiredSubjects, selectedSpecialization || specializationPool[0]].slice(
-    0,
-    5,
-  );
+  if (!selectedSpecialization) return requiredSubjects.slice(0, 5);
+
+  return [...requiredSubjects, selectedSpecialization].slice(0, 5);
 }

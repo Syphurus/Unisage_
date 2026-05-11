@@ -84,6 +84,14 @@ function isSpecializationSubject(subject) {
   );
 }
 
+function hasSupportedSpecialization(subjects, specialization) {
+  if (!specialization) return false;
+  return subjects.some(
+    (subject) =>
+      !isSem4CoreSubject(subject) && matchesSpecialization(subject, specialization)
+  );
+}
+
 function examSubjectsForStudent(subjects, specialization) {
   const isOnlySem4 =
     subjects.length > 0 && subjects.every((subject) => subject.semester === 4);
@@ -96,15 +104,14 @@ function examSubjectsForStudent(subjects, specialization) {
   if (specializationPool.length === 0) return requiredSubjects.slice(0, 5);
 
   const selectedSpecialization =
-    specialization &&
+    hasSupportedSpecialization(subjects, specialization) &&
     specializationPool.find((subject) =>
       matchesSpecialization(subject, specialization)
     );
 
-  return [...requiredSubjects, selectedSpecialization || specializationPool[0]].slice(
-    0,
-    5
-  );
+  if (!selectedSpecialization) return requiredSubjects.slice(0, 5);
+
+  return [...requiredSubjects, selectedSpecialization].slice(0, 5);
 }
 
 function filterSubjectsForStudent(subjects, user) {
@@ -141,13 +148,17 @@ function filterSubjectsForStudent(subjects, user) {
 
 function canAccessSubject(subject, user) {
   if (!subject) return false;
-  if (!user || !user.specialization || Number(user.semester) < 4) {
+  if (!user || Number(user.semester) < 4) {
     return true;
   }
 
   const semester = Number(subject.semester);
   if (semester < 4 || isSem4CoreSubject(subject)) {
     return true;
+  }
+
+  if (!user.specialization) {
+    return false;
   }
 
   if (semester === 4) {
