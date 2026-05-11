@@ -11,6 +11,7 @@ import {
 } from "@/components/unisage/primitives";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import type { Content } from "@/lib/types";
+import { getApiRoot } from "@/lib/api-base";
 
 interface PyqsViewerProps {
   content: Content[];
@@ -43,7 +44,7 @@ function filenameFromDisposition(disposition: string | null) {
 export default function PyqsViewer({ content, isLoading }: PyqsViewerProps) {
   const [mode, setMode] = useState<Mode>("repeat");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const apiBaseUrl = getApiRoot();
 
   const handleDownload = async (id: string) => {
     setDownloadingId(id);
