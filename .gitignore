@@ -5,3 +5,4 @@ web/.next/
 web/.next.codex-build-stale/
 node_modules/
 *.pem
+deploy/production.env

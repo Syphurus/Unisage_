@@ -194,10 +194,16 @@ const server = app.listen(PORT, () => {
     environment: env.NODE_ENV,
     port: PORT,
   });
-  try {
-    startJobs();
-  } catch (err) {
-    logger.error("Failed to start background jobs", { error: err.message });
+  const isPrimaryPm2Instance =
+    process.env.NODE_APP_INSTANCE === undefined ||
+    process.env.NODE_APP_INSTANCE === "0";
+
+  if (env.RUN_BACKGROUND_JOBS && isPrimaryPm2Instance) {
+    try {
+      startJobs();
+    } catch (err) {
+      logger.error("Failed to start background jobs", { error: err.message });
+    }
   }
 });
 

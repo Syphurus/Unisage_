@@ -244,18 +244,11 @@ async function createIntent({ user, planId, req }) {
 // ────────────────────────────────────────────────────────────
 // Razorpay Standard Checkout
 // ────────────────────────────────────────────────────────────
-function normalizeRazorpayOfferId(value) {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed || null;
-}
-
-async function createRazorpayOrder({ user, planId, razorpayOfferId, req }) {
+async function createRazorpayOrder({ user, planId, req }) {
   const plan = await getPlanById(planId);
   if (plan.amount_inr_paise < MIN_RAZORPAY_AMOUNT_PAISE) {
     throw new ValidationError("Amount must be at least 100 paise");
   }
-  const offerId = normalizeRazorpayOfferId(razorpayOfferId);
 
   await cancelOpenPaymentsForNewCheckout({ userId: user.id, req });
 
@@ -305,7 +298,7 @@ async function createRazorpayOrder({ user, planId, razorpayOfferId, req }) {
   }
 
   try {
-    const orderPayload = {
+    const order = await getRazorpayClient().orders.create({
       amount: plan.amount_inr_paise,
       currency: "INR",
       receipt: referenceCode,
@@ -314,10 +307,7 @@ async function createRazorpayOrder({ user, planId, razorpayOfferId, req }) {
         user_id: user.id,
         plan_id: plan.id,
       },
-    };
-    if (offerId) orderPayload.offers = [offerId];
-
-    const order = await getRazorpayClient().orders.create(orderPayload);
+    });
 
     const { error: eventInsertError } = await supabase.from("payment_events").insert([
       {
@@ -337,7 +327,6 @@ async function createRazorpayOrder({ user, planId, razorpayOfferId, req }) {
           receipt: order.receipt,
           amount: order.amount,
           currency: order.currency,
-          razorpay_offer_id: offerId,
         },
       },
     ]);
@@ -352,7 +341,6 @@ async function createRazorpayOrder({ user, planId, razorpayOfferId, req }) {
         planId: plan.id,
         referenceCode,
         razorpayOrderId: order.id,
-        razorpayOfferId: offerId,
       },
     });
 
@@ -380,15 +368,11 @@ async function createRazorpayOrder({ user, planId, razorpayOfferId, req }) {
     if (statusCode === 401) {
       throw new AuthError("Razorpay authentication failed");
     }
-    if (offerId && statusCode === 400) {
-      throw new ValidationError("Razorpay coupon code is invalid or unavailable");
-    }
 
     logger.error("Razorpay order creation failed", {
       paymentId: inserted.id,
       message: err.message,
       statusCode,
-      razorpayOfferId: offerId,
     });
     throw new AppError("Failed to create Razorpay order", 500, "RAZORPAY_ORDER_FAILED");
   }

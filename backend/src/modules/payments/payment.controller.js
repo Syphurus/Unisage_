@@ -50,7 +50,6 @@ async function createRazorpayOrder(req, res, next) {
     const result = await paymentService.createRazorpayOrder({
       user: req.user,
       planId: req.body.planId,
-      razorpayOfferId: req.body.razorpayOfferId,
       req,
     });
     res.status(201).json({ success: true, data: result });

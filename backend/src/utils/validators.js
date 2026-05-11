@@ -26,6 +26,13 @@ const passwordField = Joi.string()
     "Password must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number"
   );
 
+const enrollmentNumberField = Joi.string()
+  .trim()
+  .max(30)
+  .pattern(/^[A-Za-z0-9 /-]+$/)
+  .message("Enrollment number can only contain letters, numbers, spaces, /, or -")
+  .allow("", null);
+
 function semesterRule(yearKey = "year", semesterKey = "semester") {
   return Joi.any()
     .custom((value, helpers) => {
@@ -81,7 +88,13 @@ const signup = {
         return value;
       }),
     specialization: Joi.string().max(50).allow("", null),
-    enrollmentNumber: Joi.string().alphanum().max(20).allow("", null),
+    enrollmentNumber: enrollmentNumberField,
+  }).custom((value, helpers) => {
+    if (value.semester >= 4 && !value.specialization) {
+      return helpers.message("Specialization is required for semester 4 and above");
+    }
+
+    return value;
   }),
 };
 
@@ -118,7 +131,7 @@ const updateProfile = {
         return value;
       }),
     specialization: Joi.string().max(50).allow("", null),
-    enrollmentNumber: Joi.string().alphanum().max(20).allow("", null),
+    enrollmentNumber: enrollmentNumberField,
   }).min(1),
 };
 
@@ -462,7 +475,7 @@ const adminUserBody = Joi.object({
   role: Joi.string().valid("student", "admin").required(),
   year: Joi.number().integer().min(1).max(4).allow(null),
   semester: Joi.number().integer().min(1).max(8).allow(null),
-  enrollmentNumber: Joi.string().alphanum().max(20).allow("", null),
+  enrollmentNumber: enrollmentNumberField,
   isActive: Joi.boolean().default(true),
   permissions: Joi.array()
     .items(Joi.string().valid(...adminPermissionValues))
@@ -490,7 +503,7 @@ const adminUserUpdateBody = Joi.object({
   role: Joi.string().valid("student", "admin"),
   year: Joi.number().integer().min(1).max(4).allow(null),
   semester: Joi.number().integer().min(1).max(8).allow(null),
-  enrollmentNumber: Joi.string().alphanum().max(20).allow("", null),
+  enrollmentNumber: enrollmentNumberField,
   isActive: Joi.boolean(),
   permissions: Joi.array().items(Joi.string().valid(...adminPermissionValues)),
 }).min(1);

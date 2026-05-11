@@ -42,6 +42,12 @@ async function signup(data) {
     specialization,
     enrollmentNumber,
   } = data;
+  const normalizedSpecialization =
+    semester >= 4 && specialization ? String(specialization).trim() : null;
+
+  if (semester >= 4 && !normalizedSpecialization) {
+    throw new ValidationError("Specialization is required for semester 4 and above");
+  }
 
   // 1. Check if user already exists
   const { data: existingRows, error: existingErr } = await supabase
@@ -97,7 +103,7 @@ async function signup(data) {
       branch_id: branch.id,
       year,
       semester,
-      specialization: semester >= 4 ? specialization : null,
+      specialization: normalizedSpecialization,
       enrollment_number: enrollmentNumber || null,
       role: "student",
       permissions: [],
@@ -108,7 +114,20 @@ async function signup(data) {
     .single();
 
   if (insertErr) {
-    logger.error("Signup insert failed", { error: insertErr.message, email });
+    logger.error("Signup insert failed", {
+      error: insertErr.message,
+      code: insertErr.code,
+      details: insertErr.details,
+      hint: insertErr.hint,
+      email,
+    });
+
+    if (/specialization|schema cache/i.test(insertErr.message || "")) {
+      throw new ServiceUnavailableError(
+        "Signup is not fully configured. Run backend/database/migrations/20260511_add_user_specialization.sql in Supabase, then restart the backend."
+      );
+    }
+
     throw new Error("Failed to create account. Please try again.");
   }
 
