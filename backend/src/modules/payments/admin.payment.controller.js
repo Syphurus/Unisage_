@@ -21,12 +21,17 @@ function readExpectedVersion(req) {
   if (header != null) {
     const n = Number.parseInt(header, 10);
     if (!Number.isFinite(n) || n < 0) {
-      throw new ValidationError("If-Match header must be a non-negative integer");
+      throw new ValidationError(
+        "If-Match header must be a non-negative integer"
+      );
     }
     return n;
   }
-  if (typeof req.body.expectedVersion === "number") return req.body.expectedVersion;
-  throw new ValidationError("Concurrency token required (If-Match or body.expectedVersion)");
+  if (typeof req.body.expectedVersion === "number")
+    return req.body.expectedVersion;
+  throw new ValidationError(
+    "Concurrency token required (If-Match or body.expectedVersion)"
+  );
 }
 
 async function queue(req, res, next) {
@@ -49,7 +54,9 @@ async function queue(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const result = await paymentService.adminGetPayment({ paymentId: req.params.id });
+    const result = await paymentService.adminGetPayment({
+      paymentId: req.params.id,
+    });
     let proofUrl = null;
     if (result.upload) {
       const signed = await proofStorage.getSignedUrl({
@@ -137,15 +144,33 @@ async function revoke(req, res, next) {
   }
 }
 
+async function cancel(req, res, next) {
+  try {
+    const expectedVersion = readExpectedVersion(req);
+    const data = await paymentService.adminCancel({
+      admin: req.user,
+      paymentId: req.params.id,
+      expectedVersion,
+      req,
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function listAudit(req, res, next) {
   try {
     const paymentId = req.query.paymentId;
     let q = supabase
       .from("audit_logs")
-      .select("id, actor_type, actor_id, action, target_type, target_id, ip, metadata, created_at")
+      .select(
+        "id, actor_type, actor_id, action, target_type, target_id, ip, metadata, created_at"
+      )
       .order("created_at", { ascending: false })
       .limit(100);
-    if (paymentId) q = q.eq("target_type", "payment").eq("target_id", paymentId);
+    if (paymentId)
+      q = q.eq("target_type", "payment").eq("target_id", paymentId);
     const { data, error } = await q;
     if (error) throw error;
     res.json({ success: true, data });
@@ -186,4 +211,4 @@ function serializeAdminPayment(row) {
   };
 }
 
-module.exports = { queue, getOne, approve, reject, revoke, listAudit };
+module.exports = { queue, getOne, approve, reject, revoke, cancel, listAudit };

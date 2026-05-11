@@ -71,6 +71,27 @@ export interface IntentResponse {
   provider: { provider: string; instructions: IntentInstructions };
 }
 
+export interface RazorpayOrderResponse {
+  paymentId: string;
+  order_id: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  name: string;
+  description: string;
+  prefill: {
+    name: string;
+    email: string;
+  };
+}
+
+export interface RazorpayVerifyResponse {
+  paymentId: string;
+  status: PaymentStatus;
+  expiresAt?: string;
+  entitlementIds?: string[];
+}
+
 export interface EntitlementSummary {
   scopes: Array<{ scope: EntitlementScope; expiresAt: string }>;
 }
@@ -151,6 +172,22 @@ export const paymentsApi = {
     request<IntentResponse>("POST", "/api/payments/intent", {
       body: { planId },
       idempotencyKey: newIdempotencyKey(),
+    }),
+
+  createRazorpayOrder: (planId: string) =>
+    request<RazorpayOrderResponse>("POST", "/api/payments/create-order", {
+      body: { planId },
+      idempotencyKey: newIdempotencyKey(),
+    }),
+
+  verifyRazorpayPayment: (body: {
+    paymentId: string;
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  }) =>
+    request<RazorpayVerifyResponse>("POST", "/api/payments/verify-payment", {
+      body,
     }),
 
   submitProof: (paymentId: string, utr: string, proof: File | null) => {

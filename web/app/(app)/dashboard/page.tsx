@@ -26,6 +26,7 @@ import {
 } from "@/components/unisage/primitives";
 import { SkeletonCard } from "@/components/unisage/Skeleton";
 import {
+  ArrowDown,
   ArrowRight,
   ChevronRight,
   GraduationCap,
@@ -34,11 +35,23 @@ import {
   Repeat,
 } from "lucide-react";
 import type { Subject } from "@/lib/types";
+import { examSubjectsForStudent } from "@/lib/semester-exams";
+import { examDateForSubject, examMeta } from "@/lib/exam-schedule";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { subjects, isLoading: subjLoading } = useSubjects(
-    user?.semester ? { year: user.year, semester: user.semester } : undefined
+  const { subjects: rawSubjects, isLoading: subjLoading } = useSubjects(
+    user?.semester
+      ? {
+          year: user.year,
+          semester: user.semester,
+          cacheKey: user.specialization || "no-specialization",
+        }
+      : undefined
+  );
+  const subjects = useMemo(
+    () => examSubjectsForStudent(rawSubjects, user?.specialization, user?.branchCode),
+    [rawSubjects, user?.specialization, user?.branchCode]
   );
   const { progress } = useProgress();
   const { stats: legacyStats } = useSessionStats();
@@ -50,7 +63,8 @@ export default function DashboardPage() {
   // to live legacy stats when the rollup is empty.
   const stats = dashStats || legacyStats;
 
-  // Build a unified, sorted list of subjects with real completion + weakness.
+  // Build a unified, sorted list of subjects with real completion, weakness,
+  // and exam timing. Dashboard priority follows upcoming paper order first.
   // For each enrolled subject, look up its rollup row by id; if the rollup
   // doesn't have a row yet (brand-new user), the subject still appears with
   // pct=0 so the UI doesn't lose it.
@@ -64,22 +78,36 @@ export default function DashboardPage() {
         weakness: sa?.weaknessScore ?? 100, // unstudied → maximum weakness
         avgQuizPct: sa?.avgQuizPct ?? null,
         activeMinutes: sa?.activeMinutes ?? 0,
+        exam: examMeta(examDateForSubject(s)),
       };
     });
-    // High probability = subjects ranked by weakness DESCENDING (most-needed
-    // study first). This is the "what should I study?" answer.
-    return merged.sort((a, b) => b.weakness - a.weakness);
+    return merged.sort(
+      (a, b) =>
+        a.exam.sortTime - b.exam.sortTime ||
+        b.weakness - a.weakness ||
+        a.subject.name.localeCompare(b.subject.name),
+    );
   }, [subjects, subjectAnalytics]);
 
-  // "Continue revision" = highest-weakness subject the user has actually
-  // touched (so we don't suggest something they've never opened).
-  const continueRevision =
-    ranked.find((r) => r.activeMinutes > 0 && r.pct < 100) ??
-    ranked.find((r) => r.pct < 100);
+  const nextPaper = ranked.find((r) => r.pct < 100) ?? ranked[0];
 
   const firstName = (user?.fullName || "Friend").split(" ")[0];
   const totalSubjects = subjects.length;
   const weakOnes = ranked.filter((r) => r.pct < 50);
+  const examCountdown =
+    nextPaper?.exam.daysUntil === 0
+      ? "today"
+      : nextPaper?.exam.daysUntil === 1
+        ? "tomorrow"
+        : typeof nextPaper?.exam.daysUntil === "number" &&
+            nextPaper.exam.daysUntil > 1
+          ? `in ${nextPaper.exam.daysUntil} days`
+          : "scheduled";
+  const scrollToPriority = () => {
+    document
+      .getElementById("high-priority")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="min-h-screen">
@@ -91,7 +119,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3 mb-5">
             <span className="h-1.5 w-1.5 inline-block rounded-full bg-mint-400 animate-pulse-soft" />
             <span className="text-[10.5px] font-semibold uppercase tracking-cap text-chalk-500">
-              {totalSubjects} subjects · in 5 days · 09:00
+              {totalSubjects} subjects · next paper {examCountdown} · 09:00
             </span>
           </div>
           <h1 className="text-[36px] md:text-[48px] lg:text-[60px] font-bold leading-[1.05] tracking-[-0.02em] text-[rgb(var(--fg))]">
@@ -104,52 +132,50 @@ export default function DashboardPage() {
         </Section>
       </PageContainer>
 
-      {/* Top grid: AI focus + Continue revision (lg side-by-side) */}
+      {/* Top grid: Next paper focus + priority card (lg side-by-side) */}
       <PageContainer>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
           <div className="lg:col-span-2">
             <HighlightCard dot={null}>
               <h3 className="text-[18px] md:text-[20px] lg:text-[22px] font-semibold leading-snug text-[rgb(var(--fg))]">
-                {ranked[0]
-                  ? `${ranked[0].subject.name} is predicted high-repeat.`
-                  : "Your weakest topic gets prioritized first."}
+                {nextPaper
+                  ? `${nextPaper.subject.name} is your next paper.`
+                  : "Your next paper gets prioritized first."}
               </h3>
               <p className="mt-3 text-[13px] lg:text-[14px] leading-relaxed text-chalk-400 max-w-2xl">
-                Memory decay is highest on topics with no recall in 14+ days.
-                Start a focus block to recover marks fast.
+                {nextPaper
+                  ? `${nextPaper.subject.code} · ${nextPaper.exam.label}. Start with the nearest scheduled exam, then move down the paper order.`
+                  : "Start with the nearest scheduled exam, then move down the paper order."}
               </p>
-              <Link
-                href="/curator"
+              <button
+                type="button"
+                onClick={scrollToPriority}
                 className="pill pill-mint-solid mt-5 inline-flex"
               >
-                Start focus block <ArrowRight className="h-3 w-3" />
-              </Link>
+                Start focus <ArrowDown className="h-3 w-3" />
+              </button>
             </HighlightCard>
           </div>
           <div className="lg:col-span-1">
-            {continueRevision ? (
+            {nextPaper ? (
               (() => {
-                const fresh = continueRevision.pct === 0;
+                const fresh = nextPaper.pct === 0;
                 return (
                   <Link
-                    href={`/subjects/${continueRevision.subject.id}`}
+                    href={`/subjects/${nextPaper.subject.id}`}
                     className="group flex flex-col h-full rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 transition-colors hover:bg-[rgb(var(--bg-subtle))]"
                   >
-                    <MetaCaption>
-                      {fresh
-                        ? "Start here · highest priority"
-                        : `Continue revision · ${continueRevision.pct}%`}
-                    </MetaCaption>
+                    <MetaCaption>Start here · next paper</MetaCaption>
                     <div className="mt-4 flex items-center gap-3">
                       <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-mint-500/10 text-mint-400">
                         <Layers className="h-5 w-5" />
                       </span>
                       <div className="min-w-0">
                         <p className="text-[11px] font-semibold uppercase tracking-cap text-chalk-500">
-                          {continueRevision.subject.code}
+                          {nextPaper.subject.code} · {nextPaper.exam.label}
                         </p>
                         <p className="mt-0.5 text-[15px] font-semibold text-[rgb(var(--fg))] truncate">
-                          {continueRevision.subject.name}
+                          {nextPaper.subject.name}
                         </p>
                       </div>
                     </div>
@@ -160,7 +186,7 @@ export default function DashboardPage() {
                       </p>
                     ) : (
                       <SegmentedProgress
-                        value={continueRevision.pct}
+                        value={nextPaper.pct}
                         segments={24}
                         className="mt-5"
                       />
@@ -179,12 +205,13 @@ export default function DashboardPage() {
         </div>
       </PageContainer>
 
-      {/* High probability ranked */}
+      {/* High priority ranked */}
+      <div id="high-priority" className="scroll-mt-24" />
       <Section density="compact">
         <PageContainer>
           <SectionHeader
-            title="High probability"
-            meta={`${ranked.length} subjects · ranked`}
+            title="High priority"
+            meta={`${ranked.length} subjects · paper order`}
           />
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4">
             {subjLoading && totalSubjects === 0 ? (
@@ -228,7 +255,8 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <p className="mt-2 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
-                      {r.subject.code} · {r.subject.credits || 4} CREDITS
+                      {r.subject.code} · {r.exam.label} ·{" "}
+                      {r.subject.credits || 4} CREDITS
                     </p>
                     <h3 className="mt-1.5 text-[16px] lg:text-[17px] font-semibold leading-snug text-[rgb(var(--fg))]">
                       {r.subject.name}
@@ -274,34 +302,29 @@ export default function DashboardPage() {
           <div className="mt-5 grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             {[
               {
-                href: "/learn",
                 Icon: Repeat,
                 label: "Recall Cycles",
                 sub: "Spaced repetition",
               },
               {
-                href: "/learn",
                 Icon: GraduationCap,
                 label: "Retrieval Lab",
                 sub: "Timed MCQ drills",
               },
               {
-                href: "/predictor",
                 Icon: FileText,
                 label: "PYQ",
                 sub: "Past paper clusters",
               },
               {
-                href: "/learn",
                 Icon: ArrowRight,
                 label: "Exam tactics",
                 sub: "Strategies & shortcuts",
               },
-            ].map(({ href, Icon, label, sub }) => (
-              <Link
+            ].map(({ Icon, label, sub }) => (
+              <div
                 key={label}
-                href={href}
-                className="group rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 transition-all hover:border-mint-500/30 hover:bg-[rgb(var(--bg-subtle))]"
+                className="group rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 transition-all hover:border-mint-500/20 hover:bg-[rgb(var(--bg-subtle))]"
               >
                 <span className="grid h-9 w-9 lg:h-11 lg:w-11 place-items-center rounded-[10px] border border-mint-500/30 text-mint-400 transition-all group-hover:bg-mint-500/10">
                   <Icon className="h-4 w-4 lg:h-[18px] lg:w-[18px]" />
@@ -312,7 +335,7 @@ export default function DashboardPage() {
                 <p className="mt-0.5 text-[11.5px] lg:text-[12px] text-chalk-400">
                   {sub}
                 </p>
-              </Link>
+              </div>
             ))}
           </div>
         </PageContainer>

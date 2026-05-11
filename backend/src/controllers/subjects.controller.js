@@ -7,6 +7,10 @@ const { NotFoundError } = require("../utils/errors");
 const { cache } = require("../services/content.service");
 const contentService = require("../services/content.service");
 const { stripPremiumGrouped } = require("../modules/entitlements/strip");
+const {
+  canAccessSubject,
+  filterSubjectsForStudent,
+} = require("../utils/semesterSubjects");
 
 /**
  * GET /api/subjects
@@ -33,11 +37,16 @@ async function getSubjects(req, res, next) {
           : querySemester;
     const branchId = queryBranchId || req.user?.branchId;
 
-    const { page = 1, limit = 20 } = req.query;
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 20);
     const offset = (page - 1) * limit;
 
+    const specialization = req.user?.specialization || "all";
+    const shouldFilterSpecialization =
+      req.user && Number(semester || req.user?.semester) >= 4;
+
     // Build cache key from filters
-    const cacheKey = `subjects_${branchId || "all"}_${year || "all"}_${semester || "all"}_p${page}_l${limit}`;
+    const cacheKey = `subjects_${branchId || "all"}_${year || "all"}_${semester || "all"}_${specialization}_p${page}_l${limit}`;
     const cached = cache.get(cacheKey);
     if (cached) {
       return res.json({ success: true, ...cached });
@@ -58,14 +67,24 @@ async function getSubjects(req, res, next) {
     if (semester) query = query.eq("semester", semester);
     if (branchId) query = query.eq("branch_id", branchId);
 
-    query = query.range(offset, offset + limit - 1);
+    if (!shouldFilterSpecialization) {
+      query = query.range(offset, offset + limit - 1);
+    }
 
     const { data, error, count } = await query;
 
     if (error) throw new Error("Failed to fetch subjects");
 
+    const filtered = shouldFilterSpecialization
+      ? filterSubjectsForStudent(data || [], req.user)
+      : data || [];
+    const paged = shouldFilterSpecialization
+      ? filtered.slice(offset, offset + limit)
+      : filtered;
+    const total = shouldFilterSpecialization ? filtered.length : count || 0;
+
     const result = {
-      data: data.map((s) => ({
+      data: paged.map((s) => ({
         id: s.id,
         name: s.name,
         code: s.code,
@@ -78,8 +97,8 @@ async function getSubjects(req, res, next) {
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
 
@@ -117,6 +136,7 @@ async function getSubjectById(req, res, next) {
       .single();
 
     if (error || !data) throw new NotFoundError("Subject");
+    if (!canAccessSubject(data, req.user)) throw new NotFoundError("Subject");
 
     // Sort units by order_index
     const units = (data.units || [])
@@ -160,12 +180,13 @@ async function getSubjectUnits(req, res, next) {
     // Verify subject exists and is active
     const { data: subject, error: subErr } = await supabase
       .from("subjects")
-      .select("id, name")
+      .select("id, name, code, year, semester")
       .eq("id", id)
       .eq("is_active", true)
       .single();
 
     if (subErr || !subject) throw new NotFoundError("Subject");
+    if (!canAccessSubject(subject, req.user)) throw new NotFoundError("Subject");
 
     const { data: units, error } = await supabase
       .from("units")
@@ -206,12 +227,13 @@ async function getSubjectUnitsContent(req, res, next) {
 
     const { data: subject, error: subErr } = await supabase
       .from("subjects")
-      .select("id, name, code")
+      .select("id, name, code, year, semester")
       .eq("id", id)
       .eq("is_active", true)
       .single();
 
     if (subErr || !subject) throw new NotFoundError("Subject");
+    if (!canAccessSubject(subject, req.user)) throw new NotFoundError("Subject");
 
     const units = await contentService.getSubjectUnitsContent(id, {
       includeUnpublished: false,
@@ -247,6 +269,9 @@ async function getSubjectContent(req, res, next) {
     const result = await contentService.getSubjectContent(id, {
       includeUnpublished: false,
     });
+    if (!canAccessSubject(result?.subject, req.user)) {
+      throw new NotFoundError("Subject");
+    }
 
     // Strip premium types from grouped content when unentitled.
     const filtered = {

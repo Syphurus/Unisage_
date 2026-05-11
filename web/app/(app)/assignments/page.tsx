@@ -19,7 +19,13 @@ import { Clock, Plus, Check } from "lucide-react";
 export default function AssignmentsPage() {
   const { user } = useAuth();
   const { subjects } = useSubjects(
-    user?.semester ? { year: user.year, semester: user.semester } : undefined,
+    user?.semester
+      ? {
+          year: user.year,
+          semester: user.semester,
+          cacheKey: user.specialization || "no-specialization",
+        }
+      : undefined,
   );
   const [items, setItems] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);

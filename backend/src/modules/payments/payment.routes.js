@@ -2,6 +2,8 @@
  * @fileoverview User-facing payment routes.
  *
  *   GET  /api/payments/plans            list active plans
+ *   POST /api/payments/create-order     create Razorpay checkout order (requires Idempotency-Key)
+ *   POST /api/payments/verify-payment   verify Razorpay signature and activate access
  *   POST /api/payments/intent           create a new payment intent (requires Idempotency-Key)
  *   POST /api/payments/:id/submit       submit UTR + optional proof image (requires Idempotency-Key)
  *   POST /api/payments/:id/cancel       cancel an open intent
@@ -40,6 +42,21 @@ router.get("/plans", controller.getPlans);
 
 router.get("/mine", perUser(60, 60 * 1000), controller.listMine);
 router.get("/me/entitlements", perUser(60, 60 * 1000), controller.getMyEntitlements);
+
+router.post(
+  "/create-order",
+  perUser(5, 15 * 60 * 1000),
+  validate(validators.createRazorpayOrder),
+  idempotency(),
+  controller.createRazorpayOrder
+);
+
+router.post(
+  "/verify-payment",
+  perUser(10, 15 * 60 * 1000),
+  validate(validators.verifyRazorpayPayment),
+  controller.verifyRazorpayPayment
+);
 
 router.post(
   "/intent",

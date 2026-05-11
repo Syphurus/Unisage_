@@ -109,7 +109,7 @@ export default function LandingPage() {
                 Enter mission control <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/login"
+                href="/demo"
                 className="text-[14px] text-chalk-400 hover:text-[rgb(var(--fg))] px-3 py-2"
               >
                 Skip · view demo

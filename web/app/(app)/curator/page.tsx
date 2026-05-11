@@ -18,6 +18,7 @@ import {
 } from "@/components/unisage/primitives";
 import { SkeletonCard } from "@/components/unisage/Skeleton";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { examSubjectsForStudent } from "@/lib/semester-exams";
 
 const BLOCK_TYPES: Record<
   string,
@@ -34,8 +35,18 @@ const BLOCK_TYPES: Record<
 
 export default function CuratorPage() {
   const { user } = useAuth();
-  const { subjects } = useSubjects(
-    user?.semester ? { year: user.year, semester: user.semester } : undefined,
+  const { subjects: rawSubjects } = useSubjects(
+    user?.semester
+      ? {
+          year: user.year,
+          semester: user.semester,
+          cacheKey: user.specialization || "no-specialization",
+        }
+      : undefined,
+  );
+  const subjects = useMemo(
+    () => examSubjectsForStudent(rawSubjects, user?.specialization, user?.branchCode),
+    [rawSubjects, user?.specialization, user?.branchCode],
   );
   const { progress } = useProgress();
   const [pool, setPool] = useState<Content[]>([]);

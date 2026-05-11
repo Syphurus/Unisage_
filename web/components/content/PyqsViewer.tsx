@@ -25,6 +25,21 @@ const TABS: { id: Mode; label: string }[] = [
   { id: "year", label: "By year" },
 ];
 
+function authHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function filenameFromDisposition(disposition: string | null) {
+  if (!disposition) return null;
+
+  const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) return decodeURIComponent(encoded);
+
+  return disposition.match(/filename="?([^";]+)"?/i)?.[1] || null;
+}
+
 export default function PyqsViewer({ content, isLoading }: PyqsViewerProps) {
   const [mode, setMode] = useState<Mode>("repeat");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -35,13 +50,20 @@ export default function PyqsViewer({ content, isLoading }: PyqsViewerProps) {
     try {
       const res = await fetch(
         `${apiBaseUrl}/api/content/${encodeURIComponent(id)}/download`,
+        {
+          headers: authHeaders(),
+          credentials: "include",
+        },
       );
       if (!res.ok) throw new Error("Download failed");
       const blob = await res.blob();
+      const filename =
+        filenameFromDisposition(res.headers.get("content-disposition")) ||
+        `pyq-${id}.pdf`;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `pyq-${id}.pdf`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();

@@ -80,7 +80,14 @@ const signup = {
 
         return value;
       }),
+    specialization: Joi.string().max(50).allow("", null),
     enrollmentNumber: Joi.string().alphanum().max(20).allow("", null),
+  }).custom((value, helpers) => {
+    if (value.semester >= 4 && !value.specialization) {
+      return helpers.message("Specialization is required from semester 4 onward");
+    }
+
+    return value;
   }),
 };
 
@@ -116,8 +123,19 @@ const updateProfile = {
 
         return value;
       }),
+    specialization: Joi.string().max(50).allow("", null),
     enrollmentNumber: Joi.string().alphanum().max(20).allow("", null),
-  }).min(1), // at least one field required
+  })
+    .min(1)
+    .custom((value, helpers) => {
+      if (value.semester >= 4 && !value.specialization) {
+        return helpers.message(
+          "Specialization is required from semester 4 onward"
+        );
+      }
+
+      return value;
+    }),
 };
 
 // ──────────────────────────────────────────────

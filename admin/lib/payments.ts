@@ -95,7 +95,12 @@ export class ApiError extends Error {
   status: number;
   code: string;
   details: unknown;
-  constructor(status: number, code: string, message: string, details?: unknown) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: unknown
+  ) {
     super(message);
     this.status = status;
     this.code = code;
@@ -154,13 +159,23 @@ function newIdempotencyKey() {
 }
 
 export const paymentsApi = {
-  queue: (params: { status?: PaymentStatus; q?: string; limit?: number; offset?: number } = {}) => {
+  queue: (
+    params: {
+      status?: PaymentStatus;
+      q?: string;
+      limit?: number;
+      offset?: number;
+    } = {}
+  ) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set("status", params.status);
     if (params.q) qs.set("q", params.q);
     qs.set("limit", String(params.limit ?? 25));
     qs.set("offset", String(params.offset ?? 0));
-    return request<QueueResponse>("GET", `/admin/payments/queue?${qs.toString()}`);
+    return request<QueueResponse>(
+      "GET",
+      `/admin/payments/queue?${qs.toString()}`
+    );
   },
 
   getOne: (id: string) =>
@@ -172,19 +187,26 @@ export const paymentsApi = {
   },
 
   approve: (id: string, expectedVersion: number, note?: string) =>
-    request<{ payment_id: string; entitlement_ids: string[]; expires_at: string }>(
-      "POST",
-      `/admin/payments/${id}/approve`,
-      {
-        body: { note: note ?? "", expectedVersion },
-        idempotencyKey: newIdempotencyKey(),
-        ifMatch: expectedVersion,
-      }
-    ),
+    request<{
+      payment_id: string;
+      entitlement_ids: string[];
+      expires_at: string;
+    }>("POST", `/admin/payments/${id}/approve`, {
+      body: { note: note ?? "", expectedVersion },
+      idempotencyKey: newIdempotencyKey(),
+      ifMatch: expectedVersion,
+    }),
 
   reject: (id: string, expectedVersion: number, reason: string) =>
     request<{ payment_id: string }>("POST", `/admin/payments/${id}/reject`, {
       body: { reason, expectedVersion },
+      idempotencyKey: newIdempotencyKey(),
+      ifMatch: expectedVersion,
+    }),
+
+  cancel: (id: string, expectedVersion: number) =>
+    request<{ payment_id: string }>("POST", `/admin/payments/${id}/cancel`, {
+      body: { expectedVersion },
       idempotencyKey: newIdempotencyKey(),
       ifMatch: expectedVersion,
     }),
@@ -201,10 +223,19 @@ export const paymentsApi = {
     ),
 };
 
-export const STATUS_BADGE: Record<PaymentStatus, { label: string; cls: string }> = {
+export const STATUS_BADGE: Record<
+  PaymentStatus,
+  { label: string; cls: string }
+> = {
   created: { label: "Created", cls: "bg-gray-100 text-gray-700" },
-  awaiting_submission: { label: "Awaiting submission", cls: "bg-blue-100 text-blue-700" },
-  pending_verification: { label: "Pending review", cls: "bg-amber-100 text-amber-800" },
+  awaiting_submission: {
+    label: "Awaiting submission",
+    cls: "bg-blue-100 text-blue-700",
+  },
+  pending_verification: {
+    label: "Pending review",
+    cls: "bg-amber-100 text-amber-800",
+  },
   approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700" },
   rejected: { label: "Rejected", cls: "bg-red-100 text-red-700" },
   expired: { label: "Expired", cls: "bg-gray-100 text-gray-600" },

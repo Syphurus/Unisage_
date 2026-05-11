@@ -11,6 +11,7 @@ import { Pill, PrimaryButton } from "@/components/unisage/primitives";
 import { useTheme } from "@/lib/hooks/useTheme";
 import { Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SPECIALIZATIONS, specializationLabel } from "@/lib/specializations";
 
 type Step = 1 | 2 | 3;
 
@@ -47,6 +48,7 @@ export default function SignupPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [branchCode, setBranchCode] = useState<string>("");
   const [semester, setSemester] = useState<number>(0);
+  const [specialization, setSpecialization] = useState<string>("");
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -71,6 +73,10 @@ export default function SignupPage() {
       .catch(() => setBranches([]));
   }, [collegeCode]);
 
+  useEffect(() => {
+    if (semester < 4) setSpecialization("");
+  }, [semester]);
+
   const yearFromSemester = (sem: number) => Math.ceil(sem / 2);
 
   const canContinue =
@@ -81,7 +87,9 @@ export default function SignupPage() {
         enrollment.length > 0
       : step === 2
         ? !!collegeCode
-        : !!branchCode && semester > 0;
+        : !!branchCode &&
+          semester > 0 &&
+          (semester < 4 || !!specialization);
 
   const onContinue = async () => {
     if (!canContinue) return;
@@ -98,6 +106,7 @@ export default function SignupPage() {
           branchCode,
           year: yearFromSemester(semester),
           semester,
+          specialization: semester >= 4 ? specialization : null,
           enrollmentNumber: enrollment,
         } as any);
         toast.success("Welcome to UniSage.");
@@ -333,6 +342,38 @@ export default function SignupPage() {
               </div>
             </div>
 
+            {semester >= 4 && (
+              <div className="mt-6">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+                  Specialization
+                </p>
+                <div className="space-y-2">
+                  {SPECIALIZATIONS.map((item) => {
+                    const active = specialization === item.code;
+                    return (
+                      <button
+                        key={item.code}
+                        onClick={() => setSpecialization(item.code)}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-[12px] border px-4 py-3 text-left transition-colors",
+                          active
+                            ? "border-mint-500 bg-mint-500/10"
+                            : "border-white/[0.08] bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--bg-subtle))]",
+                        )}
+                      >
+                        <span className="text-[13px] font-medium text-[rgb(var(--fg))]">
+                          {item.label}
+                        </span>
+                        {active && (
+                          <Check className="h-4 w-4 shrink-0 text-mint-400" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {!!branchCode && !!collegeCode && !!semester && (
               <div className="mt-6 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-cap text-mint-400">
@@ -341,6 +382,9 @@ export default function SignupPage() {
                 <p className="mt-1.5 text-[13px] text-chalk-300">
                   {colleges.find((c) => c.code === collegeCode)?.name} ·{" "}
                   {branchCode} · Sem {semester}
+                  {semester >= 4 && specialization
+                    ? ` · ${specializationLabel(specialization)}`
+                    : ""}
                 </p>
               </div>
             )}

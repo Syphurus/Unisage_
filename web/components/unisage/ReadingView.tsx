@@ -1,14 +1,52 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import HtmlContent from "@/components/content/HtmlContent";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, ListTree, X } from "lucide-react";
 
 interface TocItem {
   id: string;
   text: string;
   level: number;
+}
+
+interface TocNode extends TocItem {
+  children: TocNode[];
+}
+
+function buildTocTree(items: TocItem[]): TocNode[] {
+  const root: TocNode[] = [];
+  const stack: TocNode[] = [];
+  for (const item of items) {
+    const node: TocNode = { ...item, children: [] };
+    while (stack.length && stack[stack.length - 1].level >= node.level) {
+      stack.pop();
+    }
+    if (stack.length === 0) {
+      root.push(node);
+    } else {
+      stack[stack.length - 1].children.push(node);
+    }
+    stack.push(node);
+  }
+  return root;
+}
+
+function tocSignature(items: TocItem[]) {
+  return items.map((item) => `${item.id}:${item.text}:${item.level}`).join("|");
+}
+
+function collapsedByDefault(nodes: TocNode[]) {
+  const next: Record<string, boolean> = {};
+  const walk = (items: TocNode[]) => {
+    for (const item of items) {
+      if (item.children.length) next[item.id] = true;
+      walk(item.children);
+    }
+  };
+  walk(nodes);
+  return next;
 }
 
 /**
@@ -26,38 +64,54 @@ export function ReadingView({
   className?: string;
 }) {
   const articleRef = useRef<HTMLElement>(null);
+  const tocSignatureRef = useRef("");
   const [progress, setProgress] = useState(0);
   const [toc, setToc] = useState<TocItem[]>([]);
   const [activeId, setActiveId] = useState<string>("");
+  const [mobileOutlineOpen, setMobileOutlineOpen] = useState(false);
+  const tocTree = useMemo(() => buildTocTree(toc), [toc]);
 
-  // Inject ids onto headings + extract TOC after each render
+  // Inject ids onto headings + extract TOC after sanitized HTML lands.
+  // HtmlContent sanitizes asynchronously, so observe the article instead of
+  // only scanning immediately after React renders.
   useEffect(() => {
-    if (!articleRef.current) return;
-    const headings = Array.from(
-      articleRef.current.querySelectorAll("h1, h2, h3"),
-    ) as HTMLElement[];
-    const items: TocItem[] = headings.map((h, i) => {
-      if (!h.id) {
-        const slug = (h.textContent || `section-${i}`)
-          .toLowerCase()
-          .replace(/[^\w\s-]/g, "")
-          .replace(/\s+/g, "-")
-          .slice(0, 64);
-        h.id = `${slug}-${i}`;
+    const article = articleRef.current;
+    if (!article) return;
+
+    const refreshToc = () => {
+      const headings = Array.from(
+        article.querySelectorAll("h1, h2, h3, h4")
+      ) as HTMLElement[];
+      const items: TocItem[] = headings.map((h, i) => {
+        if (!h.id) {
+          const slug = (h.textContent || `section-${i}`)
+            .toLowerCase()
+            .replace(/[^\w\s-]/g, "")
+            .replace(/\s+/g, "-")
+            .slice(0, 64);
+          h.id = `${slug}-${i}`;
+        }
+        h.setAttribute("data-rv-heading", "1");
+        return {
+          id: h.id,
+          text: h.textContent || "",
+          level: parseInt(h.tagName.slice(1), 10),
+        };
+      });
+      const signature = tocSignature(items);
+      if (signature !== tocSignatureRef.current) {
+        tocSignatureRef.current = signature;
+        setToc(items);
       }
-      // Marker so the analytics reading-tracker can locate section anchors
-      // without needing prop drilling. See useReadingTracker.getViewState.
-      h.setAttribute("data-rv-heading", "1");
-      return {
-        id: h.id,
-        text: h.textContent || "",
-        level: parseInt(h.tagName.slice(1), 10),
-      };
-    });
-    setToc(items);
+    };
+
+    refreshToc();
+    const observer = new MutationObserver(refreshToc);
+    observer.observe(article, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, [html]);
 
-  // Track scroll for progress + active heading
+  // Track scroll for progress + active heading.
   useEffect(() => {
     const onScroll = () => {
       if (!articleRef.current) return;
@@ -70,7 +124,7 @@ export function ReadingView({
 
       // Active heading = last one whose top is above 25% of viewport
       const headings = Array.from(
-        articleRef.current.querySelectorAll("h1, h2, h3"),
+        articleRef.current.querySelectorAll("h1, h2, h3, h4")
       ) as HTMLElement[];
       const threshold = window.innerHeight * 0.25;
       let current = "";
@@ -105,6 +159,24 @@ export function ReadingView({
         />
       </div>
 
+      {toc.length > 0 && (
+        <div className="fixed left-5 right-5 top-[calc(var(--safe-top)+0.5rem)] z-40 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileOutlineOpen(true)}
+            className="inline-flex w-full items-center justify-between rounded-card border border-white/[0.08] bg-[rgb(var(--bg))]/95 px-3 py-2.5 text-left text-[13px] font-semibold text-[rgb(var(--fg))] shadow-[0_10px_28px_rgba(0,0,0,0.28)] backdrop-blur-md"
+          >
+            <span className="inline-flex items-center gap-2">
+              <ListTree className="h-4 w-4 text-mint-400" />
+              Outline
+            </span>
+            <span className="text-[11px] font-medium text-chalk-500">
+              {toc.length} sections
+            </span>
+          </button>
+        </div>
+      )}
+
       <div className={cn("grid grid-cols-1 lg:grid-cols-12 gap-10", className)}>
         {/* Article */}
         <article
@@ -117,39 +189,197 @@ export function ReadingView({
         {/* TOC sidebar */}
         {toc.length > 0 && (
           <aside className="hidden lg:block lg:col-span-3">
-            <div className="sticky top-8">
+            <div className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto pr-2">
               <p className="text-[10px] font-semibold uppercase tracking-cap text-chalk-500 mb-3">
-                On this page
+                Outline
               </p>
-              <nav className="space-y-0.5 border-l border-white/[0.06]">
-                {toc.map((item) => {
-                  const isActive = activeId === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => handleTocClick(item.id)}
-                      className={cn(
-                        "group flex w-full items-start gap-2 -ml-px border-l py-1.5 pl-3 text-left text-[12.5px] leading-snug transition-colors",
-                        isActive
-                          ? "border-mint-400 text-mint-400"
-                          : "border-transparent text-chalk-400 hover:text-[rgb(var(--fg))]",
-                        item.level === 1 && "font-semibold",
-                        item.level === 2 && "pl-3",
-                        item.level === 3 && "pl-6 text-[12px]",
-                      )}
-                    >
-                      <span className="line-clamp-2">{item.text}</span>
-                      {isActive && (
-                        <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-              </nav>
+              <Outline
+                nodes={tocTree}
+                activeId={activeId}
+                onSelect={handleTocClick}
+              />
             </div>
           </aside>
         )}
       </div>
+
+      {toc.length > 0 && mobileOutlineOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="Close outline"
+            onClick={() => setMobileOutlineOpen(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[78vh] rounded-t-[16px] border border-white/[0.08] bg-[rgb(var(--bg))] p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+                  Table of contents
+                </p>
+                <h2 className="mt-1 text-[18px] font-semibold text-[rgb(var(--fg))]">
+                  Outline
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileOutlineOpen(false)}
+                className="grid h-9 w-9 place-items-center rounded-full border border-white/[0.08] text-chalk-300"
+                aria-label="Close outline"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[58vh] overflow-y-auto pr-1">
+              <Outline
+                nodes={tocTree}
+                activeId={activeId}
+                onSelect={(id) => {
+                  setMobileOutlineOpen(false);
+                  window.setTimeout(() => handleTocClick(id), 80);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
+  );
+}
+
+function Outline({
+  nodes,
+  activeId,
+  onSelect,
+}: {
+  nodes: TocNode[];
+  activeId: string;
+  onSelect: (id: string) => void;
+}) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const ancestors = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    const walk = (ns: TocNode[], chain: string[]) => {
+      for (const node of ns) {
+        map[node.id] = chain;
+        if (node.children.length) walk(node.children, [...chain, node.id]);
+      }
+    };
+    walk(nodes, []);
+    return map;
+  }, [nodes]);
+
+  useEffect(() => {
+    setCollapsed(collapsedByDefault(nodes));
+  }, [nodes]);
+
+  const handleSelect = (id: string) => {
+    const chain = ancestors[id] || [];
+    if (chain.length) {
+      setCollapsed((prev) => {
+        const next = { ...prev };
+        for (const parentId of chain) next[parentId] = false;
+        return next;
+      });
+    }
+    onSelect(id);
+  };
+
+  return (
+    <nav className="space-y-0 border-l border-white/[0.06]">
+      {nodes.map((node) => (
+        <OutlineNode
+          key={node.id}
+          node={node}
+          depth={0}
+          activeId={activeId}
+          collapsed={collapsed}
+          onToggle={(id) =>
+            setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
+          }
+          onSelect={handleSelect}
+        />
+      ))}
+    </nav>
+  );
+}
+
+function OutlineNode({
+  node,
+  depth,
+  activeId,
+  collapsed,
+  onToggle,
+  onSelect,
+}: {
+  node: TocNode;
+  depth: number;
+  activeId: string;
+  collapsed: Record<string, boolean>;
+  onToggle: (id: string) => void;
+  onSelect: (id: string) => void;
+}) {
+  const isActive = activeId === node.id;
+  const hasChildren = node.children.length > 0;
+  const isCollapsed = !!collapsed[node.id];
+  const indent = depth * 14;
+
+  return (
+    <div>
+      <div
+        className={cn(
+          "group flex w-full items-center -ml-px border-l text-left text-[12.5px] leading-snug transition-colors",
+          isActive
+            ? "border-mint-400 text-mint-400"
+            : "border-transparent text-chalk-400 hover:text-[rgb(var(--fg))]"
+        )}
+        style={{ paddingLeft: indent }}
+      >
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={() => onToggle(node.id)}
+            aria-label={isCollapsed ? "Expand" : "Collapse"}
+            className="ml-1 grid h-5 w-5 shrink-0 place-items-center rounded text-chalk-500 hover:text-[rgb(var(--fg))]"
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-3 w-3" />
+            ) : (
+              <ChevronDown className="h-3 w-3" />
+            )}
+          </button>
+        ) : (
+          <span className="ml-1 inline-block h-5 w-5 shrink-0" />
+        )}
+        <button
+          type="button"
+          onClick={() => onSelect(node.id)}
+          className={cn(
+            "min-w-0 flex-1 py-1.5 pr-2 text-left",
+            node.level === 1 && "font-semibold text-[13px]",
+            node.level === 2 && "font-medium",
+            node.level >= 4 && "text-[12px] text-chalk-500"
+          )}
+        >
+          <span className="line-clamp-2">{node.text}</span>
+        </button>
+      </div>
+      {hasChildren && !isCollapsed && (
+        <div>
+          {node.children.map((child) => (
+            <OutlineNode
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              activeId={activeId}
+              collapsed={collapsed}
+              onToggle={onToggle}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

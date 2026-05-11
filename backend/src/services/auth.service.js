@@ -39,6 +39,7 @@ async function signup(data) {
     branchCode,
     year,
     semester,
+    specialization,
     enrollmentNumber,
   } = data;
 
@@ -96,12 +97,13 @@ async function signup(data) {
       branch_id: branch.id,
       year,
       semester,
+      specialization: semester >= 4 ? specialization : null,
       enrollment_number: enrollmentNumber || null,
       role: "student",
       permissions: [],
     })
     .select(
-      "id, email, full_name, role, permissions, year, semester, enrollment_number, created_at"
+      "id, email, full_name, role, permissions, year, semester, specialization, enrollment_number, created_at"
     )
     .single();
 
@@ -128,6 +130,7 @@ async function signup(data) {
       permissions: user.permissions || [],
       year: user.year,
       semester: user.semester,
+      specialization: user.specialization,
       collegeCode: String(collegeCode).toLowerCase(),
       branchCode: String(branchCode).toLowerCase(),
       enrollmentNumber: user.enrollment_number,
@@ -150,7 +153,7 @@ async function login(email, password) {
     .from("users")
     .select(
       `
-      id, email, password_hash, full_name, role, permissions, year, semester, enrollment_number, is_active,
+      id, email, password_hash, full_name, role, permissions, year, semester, specialization, enrollment_number, is_active,
       colleges!users_college_id_fkey(code),
       branches!users_branch_id_fkey(code)
       `
@@ -214,6 +217,7 @@ async function login(email, password) {
       permissions: user.permissions || [],
       year: user.year,
       semester: user.semester,
+      specialization: user.specialization,
       collegeCode: user.colleges?.code || null,
       branchCode: user.branches?.code || null,
       enrollmentNumber: user.enrollment_number,
@@ -234,7 +238,7 @@ async function getProfile(userId) {
     .select(
       `
       id, email, full_name, role, permissions, year, enrollment_number, is_active, created_at, last_active,
-      semester,
+      semester, specialization,
       colleges!users_college_id_fkey(name, code),
       branches!users_branch_id_fkey(name, code)
     `
@@ -254,6 +258,7 @@ async function getProfile(userId) {
     permissions: user.permissions || [],
     year: user.year,
     semester: user.semester,
+    specialization: user.specialization,
     enrollmentNumber: user.enrollment_number,
     isActive: user.is_active,
     collegeCode: user.colleges?.code || null,
@@ -277,6 +282,12 @@ async function updateProfile(userId, updates) {
   if (updates.fullName !== undefined) updateData.full_name = updates.fullName;
   if (updates.year !== undefined) updateData.year = updates.year;
   if (updates.semester !== undefined) updateData.semester = updates.semester;
+  if (updates.specialization !== undefined) {
+    updateData.specialization = updates.specialization || null;
+  }
+  if (updates.semester !== undefined && updates.semester < 4) {
+    updateData.specialization = null;
+  }
   if (updates.enrollmentNumber !== undefined)
     updateData.enrollment_number = updates.enrollmentNumber;
 
@@ -315,7 +326,7 @@ async function updateProfile(userId, updates) {
     .eq("id", userId)
     .select(
       `
-      id, email, full_name, role, year, semester, enrollment_number,
+      id, email, full_name, role, year, semester, specialization, enrollment_number,
       colleges!users_college_id_fkey(code),
       branches!users_branch_id_fkey(code)
       `
@@ -335,6 +346,7 @@ async function updateProfile(userId, updates) {
     permissions: user.permissions || [],
     year: user.year,
     semester: user.semester,
+    specialization: user.specialization,
     collegeCode: user.colleges?.code || null,
     branchCode: user.branches?.code || null,
     enrollmentNumber: user.enrollment_number,

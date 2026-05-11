@@ -38,7 +38,8 @@ function isProfileComplete(user: User | null) {
     (user.collegeCode || user.college?.code) &&
     (user.branchCode || user.branch?.code) &&
     user.year &&
-    user.semester
+    user.semester &&
+    (user.semester < 4 || user.specialization)
   );
 }
 

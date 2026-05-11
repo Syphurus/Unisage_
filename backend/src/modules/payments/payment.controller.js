@@ -45,6 +45,35 @@ async function createIntent(req, res, next) {
   }
 }
 
+async function createRazorpayOrder(req, res, next) {
+  try {
+    const result = await paymentService.createRazorpayOrder({
+      user: req.user,
+      planId: req.body.planId,
+      req,
+    });
+    res.status(201).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function verifyRazorpayPayment(req, res, next) {
+  try {
+    const result = await paymentService.verifyRazorpayPayment({
+      user: req.user,
+      paymentId: req.body.paymentId,
+      razorpayPaymentId: req.body.razorpay_payment_id,
+      razorpayOrderId: req.body.razorpay_order_id,
+      razorpaySignature: req.body.razorpay_signature,
+      req,
+    });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function submitProof(req, res, next) {
   try {
     let uploadMeta = null;
@@ -204,6 +233,8 @@ function serializeUserPayment(row) {
 module.exports = {
   getPlans,
   createIntent,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
   submitProof,
   cancel,
   getOne,

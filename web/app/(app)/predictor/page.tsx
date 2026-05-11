@@ -14,6 +14,8 @@ import { SkeletonCard } from "@/components/unisage/Skeleton";
 import { Search, Sparkles, AlertCircle } from "lucide-react";
 import { PaywallGate } from "@/components/billing/PaywallGate";
 import { ErrorState } from "@/components/shared/ErrorState";
+import { examSubjectsForStudent } from "@/lib/semester-exams";
+import { examDateForSubject, examMeta } from "@/lib/exam-schedule";
 
 type Aggregated = {
   subject: Subject;
@@ -30,8 +32,33 @@ export default function PredictorPage() {
 
 function PredictorPageInner() {
   const { user } = useAuth();
-  const { subjects, isLoading: subjLoading } = useSubjects(
-    user?.semester ? { year: user.year, semester: user.semester } : undefined
+  const { subjects: rawSubjects, isLoading: subjLoading } = useSubjects(
+    user?.semester
+      ? {
+          year: user.year,
+          semester: user.semester,
+          cacheKey: user.specialization || "no-specialization",
+        }
+      : undefined
+  );
+  const subjects = useMemo(
+    () =>
+      examSubjectsForStudent(
+        rawSubjects,
+        user?.specialization,
+        user?.branchCode,
+      )
+        .map((subject) => ({
+          subject,
+          exam: examMeta(examDateForSubject(subject)),
+        }))
+        .sort(
+          (a, b) =>
+            a.exam.sortTime - b.exam.sortTime ||
+            a.subject.name.localeCompare(b.subject.name),
+        )
+        .map((row) => row.subject),
+    [rawSubjects, user?.specialization, user?.branchCode]
   );
   const [activeId, setActiveId] = useState<string | "all">("all");
   const [search, setSearch] = useState("");
@@ -340,7 +367,10 @@ function PredictorCard({ paper, index }: { paper: Content; index: number }) {
   const meta = (paper as any).meta ?? {};
 
   return (
-    <div className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 flex flex-col">
+    <Link
+      href={`/content/${paper.id}`}
+      className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 flex flex-col transition-all hover:border-mint-500/30 hover:bg-[rgb(var(--bg-subtle))] focus:outline-none focus:ring-2 focus:ring-mint-500/50"
+    >
       <div className="flex items-center justify-between gap-3">
         <p className="text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
           PAPER · {String(index + 1).padStart(2, "0")}
@@ -359,7 +389,7 @@ function PredictorCard({ paper, index }: { paper: Content; index: number }) {
           tone="mint"
         />
       </div>
-    </div>
+    </Link>
   );
 }
 

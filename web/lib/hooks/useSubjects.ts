@@ -8,13 +8,15 @@ export function useSubjects(filters?: {
   branchId?: string;
   year?: number;
   semester?: number;
+  cacheKey?: string | null;
 }) {
   const key = filters
-    ? `subjects-${filters.branchId || "all"}-${filters.year || "all"}-${filters.semester || "all"}`
+    ? `subjects-${filters.branchId || "all"}-${filters.year || "all"}-${filters.semester || "all"}-${filters.cacheKey || "default"}`
     : "subjects";
 
   const { data, error, isLoading, mutate } = useSWR(key, async () => {
-    const response = await subjectsAPI.getAll(filters);
+    const { cacheKey: _cacheKey, ...apiFilters } = filters || {};
+    const response = await subjectsAPI.getAll(apiFilters);
     const result = response.data?.subjects || response.data || response;
     return result;
   });

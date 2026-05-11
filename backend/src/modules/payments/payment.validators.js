@@ -12,6 +12,21 @@ const createIntent = {
   }),
 };
 
+const createRazorpayOrder = {
+  body: Joi.object({
+    planId: uuid,
+  }),
+};
+
+const verifyRazorpayPayment = {
+  body: Joi.object({
+    paymentId: uuid,
+    razorpay_payment_id: Joi.string().trim().required(),
+    razorpay_order_id: Joi.string().trim().required(),
+    razorpay_signature: Joi.string().trim().required(),
+  }),
+};
+
 const paymentIdParam = {
   params: Joi.object({ id: uuid }),
 };
@@ -71,6 +86,8 @@ const adminQueueQuery = {
 
 module.exports = {
   createIntent,
+  createRazorpayOrder,
+  verifyRazorpayPayment,
   paymentIdParam,
   submitProof,
   adminApprove,

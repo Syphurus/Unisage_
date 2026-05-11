@@ -18,6 +18,8 @@ import {
 import { SkeletonCard } from "@/components/unisage/Skeleton";
 import { Search, Filter, ArrowRight } from "lucide-react";
 import type { Subject } from "@/lib/types";
+import { examSubjectsForStudent } from "@/lib/semester-exams";
+import { examDateForSubject, examMeta } from "@/lib/exam-schedule";
 
 type SortMode = "urgency" | "weakness" | "yield" | "frequency";
 
@@ -30,8 +32,18 @@ const TABS: { id: SortMode; label: string }[] = [
 
 export default function LearnPage() {
   const { user } = useAuth();
-  const { subjects, isLoading } = useSubjects(
-    user?.semester ? { year: user.year, semester: user.semester } : undefined,
+  const { subjects: rawSubjects, isLoading } = useSubjects(
+    user?.semester
+      ? {
+          year: user.year,
+          semester: user.semester,
+          cacheKey: user.specialization || "no-specialization",
+        }
+      : undefined,
+  );
+  const subjects = useMemo(
+    () => examSubjectsForStudent(rawSubjects, user?.specialization, user?.branchCode),
+    [rawSubjects, user?.specialization, user?.branchCode],
   );
   // Rollup-backed analytics — same source as the dashboard. Falls back to
   // pct=0 when a brand-new user has no rollup row yet (rather than showing
@@ -49,7 +61,8 @@ export default function LearnPage() {
       const repeats = Math.floor(8 + (s.credits || 4) * 1.5);
       const weak = Math.min(4, Math.max(0, Math.round(weaknessScore / 25)));
       const marks = Math.round(60 + pct * 0.4);
-      return { subject: s, pct, repeats, weak, marks, weaknessScore };
+      const exam = examMeta(examDateForSubject(s));
+      return { subject: s, pct, repeats, weak, marks, weaknessScore, exam };
     });
   }, [subjects, subjectAnalytics]);
 
@@ -63,8 +76,11 @@ export default function LearnPage() {
           r.subject.code.toLowerCase().includes(s),
       );
     }
-    // Urgency: lowest completion first (most behind = most urgent).
-    if (sort === "urgency") return arr.sort((a, b) => a.pct - b.pct);
+    // Urgency: nearest exam first, then lowest completion.
+    if (sort === "urgency")
+      return arr.sort(
+        (a, b) => a.exam.sortTime - b.exam.sortTime || a.pct - b.pct,
+      );
     // Weakness: highest weakness score first.
     if (sort === "weakness")
       return arr.sort((a, b) => b.weaknessScore - a.weaknessScore);
@@ -140,11 +156,15 @@ export default function LearnPage() {
                 const status =
                   tone === "mint" ? "READY" : tone === "ember" ? "WARM" : "HOT";
                 const urgency =
-                  row.pct >= 75
-                    ? "Confident"
-                    : row.pct >= 50
-                      ? "In review"
-                      : "Critical";
+                  row.exam.urgency === "Done"
+                    ? "Done"
+                    : row.exam.urgency === "Scheduled"
+                      ? "Scheduled"
+                      : row.pct >= 75
+                        ? "Confident"
+                        : row.pct >= 50
+                          ? "In review"
+                          : row.exam.urgency;
                 return (
                   <Link
                     key={row.subject.id}
@@ -154,7 +174,7 @@ export default function LearnPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
-                          {row.subject.code} · IN 5 DAYS ·{" "}
+                          {row.subject.code} · {row.exam.label} ·{" "}
                           <span
                             className={
                               tone === "flame"
