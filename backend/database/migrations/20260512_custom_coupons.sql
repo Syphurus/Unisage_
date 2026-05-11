@@ -81,6 +81,9 @@ DROP TRIGGER IF EXISTS trg_coupon_redemptions_updated_at ON coupon_redemptions;
 CREATE TRIGGER trg_coupon_redemptions_updated_at BEFORE UPDATE ON coupon_redemptions
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coupon_redemptions ENABLE ROW LEVEL SECURITY;
+
 -- ============================================================
 -- ATOMIC RESERVATION / RELEASE / REDEEM RPCs
 -- ============================================================
@@ -238,3 +241,56 @@ VALUES
   ('FIRST100', 'fixed', 10000, NULL, 19900, 500, 1, ARRAY[]::TEXT[], true, true, NOW() + INTERVAL '90 days'),
   ('UPES25', 'percentage', 25, 25000, 19900, 2000, 1, ARRAY['upes.ac.in']::TEXT[], false, true, NOW() + INTERVAL '365 days')
 ON CONFLICT (code) DO NOTHING;
+
+-- ============================================================
+-- Seed admin permission: coupons.manage
+-- Handles both TEXT[] and JSONB column shapes.
+-- ============================================================
+DO $$
+DECLARE v_type TEXT;
+BEGIN
+  SELECT data_type INTO v_type
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'permissions';
+
+  IF v_type IS NULL THEN
+    EXECUTE 'ALTER TABLE users ADD COLUMN permissions TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]';
+    v_type := 'ARRAY';
+  END IF;
+
+  IF v_type = 'ARRAY' THEN
+    EXECUTE $sql$
+      UPDATE users
+        SET permissions = (
+          SELECT ARRAY(SELECT DISTINCT UNNEST(COALESCE(permissions, ARRAY[]::TEXT[]) || ARRAY['coupons.manage']))
+        )
+        WHERE role = 'admin'
+    $sql$;
+  ELSIF v_type = 'jsonb' THEN
+    EXECUTE $sql$
+      UPDATE users
+        SET permissions = (
+          SELECT to_jsonb(ARRAY(
+            SELECT DISTINCT value FROM (
+              SELECT jsonb_array_elements_text(COALESCE(permissions, '[]'::jsonb)) AS value
+              UNION ALL SELECT 'coupons.manage'
+            ) t
+          ))
+        )
+        WHERE role = 'admin'
+    $sql$;
+  ELSIF v_type = 'json' THEN
+    EXECUTE $sql$
+      UPDATE users
+        SET permissions = to_json(ARRAY(
+          SELECT DISTINCT value FROM (
+            SELECT json_array_elements_text(COALESCE(permissions, '[]'::json)) AS value
+            UNION ALL SELECT 'coupons.manage'
+          ) t
+        ))
+        WHERE role = 'admin'
+    $sql$;
+  ELSE
+    RAISE NOTICE 'Unknown permissions column type % — skipping coupons.manage seed; grant manually.', v_type;
+  END IF;
+END $$;

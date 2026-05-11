@@ -10,6 +10,7 @@ import {
   BarChart3,
   ChevronLeft,
   CreditCard,
+  Tag,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -40,6 +41,11 @@ const navItems = [
     label: "Payments",
     href: "/dashboard/payments",
     icon: CreditCard,
+  },
+  {
+    label: "Coupons",
+    href: "/dashboard/coupons",
+    icon: Tag,
   },
 ];
 

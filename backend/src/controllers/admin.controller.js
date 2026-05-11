@@ -35,6 +35,9 @@ const ADMIN_PERMISSION_VALUES = [
   "users.manage",
   "team.manage",
   "analytics.view",
+  "coupons.manage",
+  "payments.review",
+  "payments.revoke",
 ];
 
 function parseFlexibleJson(raw) {

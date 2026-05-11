@@ -35,6 +35,7 @@ const metaRoutes = require("./routes/meta.routes");
 const paymentRoutes = require("./modules/payments/payment.routes");
 const adminPaymentRoutes = require("./modules/payments/admin.payment.routes");
 const couponRoutes = require("./modules/coupons/coupon.routes");
+const adminCouponRoutes = require("./modules/coupons/admin.coupon.routes");
 const { startJobs } = require("./jobs");
 
 // ──────────────────────────────────────────────
@@ -168,6 +169,7 @@ app.use("/api/coupons", couponRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admin/payments", adminPaymentRoutes);
+app.use("/api/admin/coupons", adminCouponRoutes);
 
 // ──────────────────────────────────────────────
 // 404 handler for unmatched routes
