@@ -18,6 +18,9 @@ require("dotenv").config();
  * @property {string[]} CORS_ORIGINS - Allowed CORS origins
  * @property {number} RATE_LIMIT_WINDOW_MS - Rate limit window in ms
  * @property {number} RATE_LIMIT_MAX - Max requests per window
+ * @property {number} AUTH_USER_CACHE_TTL_SECONDS - Auth user cache TTL
+ * @property {number} LAST_ACTIVE_WRITE_INTERVAL_MS - Minimum gap between last_active writes
+ * @property {number} SLOW_REQUEST_MS - Request duration logged as slow in production
  * @property {string} LOG_LEVEL - Winston log level
  * @property {string} RAZORPAY_KEY_ID - Razorpay public key id
  * @property {string} RAZORPAY_KEY_SECRET - Razorpay private key secret
@@ -74,7 +77,14 @@ const env = {
   // Rate limiting
   RATE_LIMIT_WINDOW_MS:
     parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 min
-  RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
+  RATE_LIMIT_MAX: parseInt(process.env.RATE_LIMIT_MAX, 10) || 5000,
+
+  // Runtime protection / load shedding
+  AUTH_USER_CACHE_TTL_SECONDS:
+    parseInt(process.env.AUTH_USER_CACHE_TTL_SECONDS, 10) || 60,
+  LAST_ACTIVE_WRITE_INTERVAL_MS:
+    parseInt(process.env.LAST_ACTIVE_WRITE_INTERVAL_MS, 10) || 5 * 60 * 1000,
+  SLOW_REQUEST_MS: parseInt(process.env.SLOW_REQUEST_MS, 10) || 1000,
 
   // Logging
   LOG_LEVEL: process.env.LOG_LEVEL || "info",

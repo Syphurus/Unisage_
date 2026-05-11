@@ -2,7 +2,7 @@
 
 /**
  * Entitlement provider. Polls /api/payments/me/entitlements while mounted
- * so revocations propagate within ~10 seconds. The backend remains the
+ * so revocations propagate within ~60 seconds. The backend remains the
  * single source of truth — this hook never makes access decisions on its
  * own, it merely reflects what the backend reports.
  */
@@ -34,7 +34,7 @@ interface EntitlementsContextValue {
 
 const Ctx = createContext<EntitlementsContextValue | null>(null);
 
-const POLL_MS = 10_000;
+const POLL_MS = 60_000;
 
 export function EntitlementsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -43,6 +43,11 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     if (!user) {
+      setData(null);
+      setIsLoading(false);
+      return;
+    }
+    if (typeof window !== "undefined" && !localStorage.getItem("token")) {
       setData(null);
       setIsLoading(false);
       return;
@@ -63,6 +68,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refresh();
     if (!user) return;
+    if (typeof window !== "undefined" && !localStorage.getItem("token")) return;
     const id = setInterval(refresh, POLL_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();

@@ -8,7 +8,8 @@ const rateLimit = require("express-rate-limit");
 const env = require("../config/env");
 
 /**
- * Global rate limiter: 100 requests per 15-minute window per IP.
+ * Global rate limiter: broad abuse guard per IP.
+ * Auth/payment routes add stricter user-aware limits where needed.
  * Returns 429 with a consistent error response when exceeded.
  */
 const rateLimiter = rateLimit({

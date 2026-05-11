@@ -19,6 +19,10 @@ function cacheKey(userId, scope) {
   return `${userId}:${scope}`;
 }
 
+function listCacheKey(userId) {
+  return `${userId}:list`;
+}
+
 /**
  * Returns the active entitlement row for (userId, scope) or null.
  * "Active" = not revoked, not expired.
@@ -56,6 +60,10 @@ async function getActive(userId, scope) {
  * Useful for the /me/entitlements endpoint and the frontend gate.
  */
 async function listActive(userId) {
+  const key = listCacheKey(userId);
+  const hit = cache.get(key);
+  if (hit !== undefined) return hit;
+
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("entitlements")
@@ -72,7 +80,12 @@ async function listActive(userId) {
   for (const row of data || []) {
     if (!byScope.has(row.scope)) byScope.set(row.scope, row.expires_at);
   }
-  return Array.from(byScope, ([scope, expiresAt]) => ({ scope, expiresAt }));
+  const rows = Array.from(byScope, ([scope, expiresAt]) => ({
+    scope,
+    expiresAt,
+  }));
+  cache.set(key, rows);
+  return rows;
 }
 
 /**

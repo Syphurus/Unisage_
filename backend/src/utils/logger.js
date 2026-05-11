@@ -1,10 +1,7 @@
 /**
  * @fileoverview Winston logger configuration with daily rotate files.
- * Logs are written to:
- *  - Console (colorized in development)
- *  - logs/error.log   (errors only)
- *  - logs/combined.log (all levels)
- * Files are rotated daily and kept for 14 days.
+ * In production, logs go to stdout/stderr for the host log collector.
+ * In development, logs also go to rotating local files.
  */
 
 const winston = require("winston");
@@ -51,17 +48,16 @@ const consoleTransport = new winston.transports.Console({
   ),
 });
 
+const transports = env.isProduction
+  ? [consoleTransport]
+  : [errorRotate, combinedRotate, consoleTransport];
+
 const logger = winston.createLogger({
   level: env.LOG_LEVEL,
   format: logFormat,
-  transports: [errorRotate, combinedRotate],
+  transports,
   // Don't exit on uncaught exceptions — let the process manager handle restarts
   exitOnError: false,
 });
-
-// Add console output in non-production environments
-if (!env.isProduction) {
-  logger.add(consoleTransport);
-}
 
 module.exports = logger;

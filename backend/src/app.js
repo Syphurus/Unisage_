@@ -41,6 +41,10 @@ const { startJobs } = require("./jobs");
 // ──────────────────────────────────────────────
 const app = express();
 
+// Render and most production hosts sit behind a reverse proxy. Trust one hop
+// so rate limits use the real client IP instead of grouping everyone together.
+app.set("trust proxy", 1);
+
 // ──────────────────────────────────────────────
 // Global middleware
 // ──────────────────────────────────────────────
@@ -122,7 +126,9 @@ app.use((req, res, next) => {
 
     if (res.statusCode >= 400) {
       logger.warn("Request completed with error", logData);
-    } else {
+    } else if (env.isProduction && duration >= env.SLOW_REQUEST_MS) {
+      logger.info("Slow request completed", logData);
+    } else if (env.isDevelopment) {
       logger.info("Request completed", logData);
     }
   });
@@ -183,7 +189,7 @@ app.use(errorHandler);
 // ──────────────────────────────────────────────
 const PORT = env.PORT;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info(`🚀 UniSage API server running on port ${PORT}`, {
     environment: env.NODE_ENV,
     port: PORT,
@@ -194,6 +200,19 @@ app.listen(PORT, () => {
     logger.error("Failed to start background jobs", { error: err.message });
   }
 });
+
+server.keepAliveTimeout = 65_000;
+server.headersTimeout = 70_000;
+server.requestTimeout = 30_000;
+
+function shutdown(signal) {
+  logger.info(`Received ${signal}, shutting down gracefully`);
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (reason) => {
