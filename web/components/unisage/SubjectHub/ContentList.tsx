@@ -20,8 +20,9 @@ import {
 import HtmlContent from "@/components/content/HtmlContent";
 import type { Content } from "@/lib/types";
 import type { ContentTabId } from "./ContentTabs";
+import { getApiRoot } from "@/lib/api-base";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE = getApiRoot();
 
 const GROUP_ORDER: ContentTabId[] = [
   "long_notes",

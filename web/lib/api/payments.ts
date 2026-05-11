@@ -7,7 +7,9 @@
  *   - surface backend error.code (ENTITLEMENT_REQUIRED, VERSION_CONFLICT, …)
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+import { getApiRoot } from "@/lib/api-base";
+
+const API_URL = getApiRoot();
 
 export type EntitlementScope = "predictor" | "analysis";
 

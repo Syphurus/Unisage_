@@ -1,10 +1,11 @@
+import { getApiRoot } from "@/lib/api-base";
+
 export const APP_NAME = "UniSage";
 export const APP_DESCRIPTION =
   "AI-powered study platform built for UPES CSE students";
 export const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+export const API_URL = getApiRoot();
 
 export const YEARS = [
   { value: 1, label: "Year 1" },
