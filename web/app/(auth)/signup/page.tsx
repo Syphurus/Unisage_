@@ -88,8 +88,7 @@ export default function SignupPage() {
       : step === 2
         ? !!collegeCode
         : !!branchCode &&
-          semester > 0 &&
-          (semester < 4 || !!specialization);
+          semester > 0;
 
   const onContinue = async () => {
     if (!canContinue) return;
@@ -384,7 +383,9 @@ export default function SignupPage() {
                   {branchCode} · Sem {semester}
                   {semester >= 4 && specialization
                     ? ` · ${specializationLabel(specialization)}`
-                    : ""}
+                    : semester >= 4
+                      ? " · Core subjects"
+                      : ""}
                 </p>
               </div>
             )}
