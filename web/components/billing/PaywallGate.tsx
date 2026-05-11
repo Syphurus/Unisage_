@@ -148,12 +148,6 @@ export function PaywallGate({
                 <ArrowRight className="h-4 w-4" />
               </button>
 
-              <Link
-                href="/billing"
-                className="mt-3 inline-flex w-full items-center justify-center text-[12px] text-chalk-400 hover:text-chalk-200"
-              >
-                Manage billing →
-              </Link>
             </div>
           </div>
         </div>
