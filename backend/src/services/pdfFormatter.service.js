@@ -5,6 +5,24 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+
+if (typeof globalThis.DOMMatrix === "undefined") {
+  globalThis.DOMMatrix = class DOMMatrix {
+    constructor(init) {
+      const values = Array.isArray(init) ? init : [1, 0, 0, 1, 0, 0];
+      [this.a, this.b, this.c, this.d, this.e, this.f] = values;
+    }
+  };
+}
+
+if (typeof globalThis.ImageData === "undefined") {
+  globalThis.ImageData = class ImageData {};
+}
+
+if (typeof globalThis.Path2D === "undefined") {
+  globalThis.Path2D = class Path2D {};
+}
+
 const { PDFParse } = require("pdf-parse");
 
 function escapeHtml(str) {
