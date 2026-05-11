@@ -5,7 +5,14 @@
  * distinguish version conflicts, validation failures, and rate limits.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+const API_URL = normalizeApiUrl(
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api"
+);
+
+function normalizeApiUrl(url: string) {
+  const trimmed = url.replace(/\/+$/, "");
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
 
 export interface AdminPayment {
   id: string;
