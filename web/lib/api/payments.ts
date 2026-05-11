@@ -174,9 +174,9 @@ export const paymentsApi = {
       idempotencyKey: newIdempotencyKey(),
     }),
 
-  createRazorpayOrder: (planId: string, razorpayOfferId?: string) =>
+  createRazorpayOrder: (planId: string) =>
     request<RazorpayOrderResponse>("POST", "/api/payments/create-order", {
-      body: { planId, razorpayOfferId },
+      body: { planId },
       idempotencyKey: newIdempotencyKey(),
     }),
 

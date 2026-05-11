@@ -78,17 +78,21 @@ export default function SignupPage() {
   }, [semester]);
 
   const yearFromSemester = (sem: number) => Math.ceil(sem / 2);
+  const passwordMeetsRules = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,128}$/.test(
+    password,
+  );
 
   const canContinue =
     step === 1
       ? fullName.length >= 2 &&
         email.includes("@") &&
-        password.length >= 8 &&
-        enrollment.length > 0
+        passwordMeetsRules &&
+        enrollment.trim().length > 0
       : step === 2
         ? !!collegeCode
         : !!branchCode &&
-          semester > 0;
+          semester > 0 &&
+          (semester < 4 || !!specialization);
 
   const onContinue = async () => {
     if (!canContinue) return;
@@ -98,20 +102,19 @@ export default function SignupPage() {
       setSubmitting(true);
       try {
         await signup({
-          fullName,
-          email,
+          fullName: fullName.trim(),
+          email: email.trim(),
           password,
           collegeCode,
           branchCode,
           year: yearFromSemester(semester),
           semester,
           specialization: semester >= 4 ? specialization : null,
-          enrollmentNumber: enrollment,
+          enrollmentNumber: enrollment.trim(),
         } as any);
         toast.success("Welcome to UniSage.");
       } catch (err) {
-        const e = err as { message?: string };
-        toast.error(e.message || "Signup failed");
+        toast.error(getErrorMessage(err));
       } finally {
         setSubmitting(false);
       }
@@ -408,6 +411,22 @@ export default function SignupPage() {
         </PrimaryButton>
       </div>
     </div>
+  );
+}
+
+function getErrorMessage(err: unknown) {
+  const error = err as {
+    message?: string;
+    error?: { message?: string };
+    response?: { data?: { error?: { message?: string }; message?: string } };
+  };
+
+  return (
+    error?.error?.message ||
+    error?.response?.data?.error?.message ||
+    error?.response?.data?.message ||
+    error?.message ||
+    "Signup failed"
   );
 }
 
