@@ -49,6 +49,7 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
 
   body {
@@ -60,6 +61,7 @@
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
+    overflow-x: hidden;
   }
 
   input[type="text"],
@@ -258,14 +260,22 @@
     color: rgb(var(--fg));
     line-height: 1.7;
     font-size: 16px;
-    font-feature-settings: "ss01" 1, "ss02" 1, "kern" 1;
+    font-feature-settings:
+      "ss01" 1,
+      "ss02" 1,
+      "kern" 1;
     /* Force the dark theme to win against admin Word/Docs HTML */
     background: transparent;
+    max-width: 100%;
+    overflow-x: clip;
   }
   /* Reset any color/background bleed from admin-uploaded HTML so our
      theme always wins. Specific elements (code, blockquote, table head)
      re-establish their backgrounds below with !important. */
-  .prose-notes *:not(code):not(pre):not(blockquote):not(thead):not(th):not(.callout):not([data-callout]) {
+  .prose-notes
+    *:not(code):not(pre):not(blockquote):not(thead):not(th):not(.callout):not(
+      [data-callout]
+    ) {
     background-color: transparent !important;
     background-image: none !important;
   }
@@ -368,6 +378,7 @@
     font-family: var(--font-mono, "JetBrains Mono", monospace);
     font-size: 0.88em;
     border: 1px solid rgba(var(--mint), 0.18);
+    overflow-wrap: anywhere;
   }
 
   /* Code blocks */
@@ -377,6 +388,8 @@
     border-radius: 12px;
     padding: 16px 20px;
     overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
     font-size: 13.5px;
     line-height: 1.6;
     margin: 1.5em 0;
@@ -388,6 +401,8 @@
     padding: 0;
     border: 0;
     font-size: inherit;
+    overflow-wrap: normal;
+    white-space: pre;
   }
 
   /* Blockquote — pull-quote style */
@@ -425,7 +440,11 @@
     @apply w-full border-collapse my-6 text-[13.5px];
     border: 1px solid rgba(var(--border), 0.08);
     border-radius: 10px;
-    overflow: hidden;
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
   }
   .prose-notes thead {
     background: rgb(var(--bg-subtle)) !important;
@@ -507,4 +526,14 @@
   .pb-tabs {
     padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
+}
+
+form .razorpay-payment-button {
+  width: 100% !important;
+  height: 100% !important;
+  cursor: pointer !important;
+  background: transparent !important;
+  border: none !important;
+  position: absolute !important;
+  inset: 0 !important;
 }

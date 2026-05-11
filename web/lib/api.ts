@@ -76,6 +76,7 @@ export const authAPI = {
     branchCode?: string;
     year?: number;
     semester?: number;
+    specialization?: string | null;
     enrollmentNumber?: string;
   }) => api.put<unknown, ApiRes<User>>("/api/auth/me", data),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>

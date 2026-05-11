@@ -8,6 +8,7 @@ export interface User {
   role: string;
   year: number;
   semester?: number | null;
+  specialization?: string | null;
   collegeCode?: string | null;
   branchCode?: string | null;
   enrollmentNumber?: string | null;
@@ -206,6 +207,7 @@ export interface SignupData {
   branchCode: string;
   year: number;
   semester: number;
+  specialization?: string | null;
   enrollmentNumber: string;
 }
 

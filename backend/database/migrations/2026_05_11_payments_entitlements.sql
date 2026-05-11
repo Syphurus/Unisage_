@@ -313,6 +313,80 @@ BEGIN
   RETURN jsonb_build_object('payment_id', v_payment.id, 'entitlement_ids', v_ent_ids, 'expires_at', v_expires);
 END $$ LANGUAGE plpgsql;
 
+-- approve_razorpay_payment: atomic Razorpay awaiting_submission → approved
+-- + entitlement INSERT(s) + events after backend signature verification.
+CREATE OR REPLACE FUNCTION approve_razorpay_payment(
+  p_payment_id UUID,
+  p_user_id UUID,
+  p_expected_version INTEGER,
+  p_razorpay_order_id TEXT,
+  p_razorpay_payment_id TEXT
+) RETURNS JSONB AS $$
+DECLARE
+  v_payment payments%ROWTYPE;
+  v_now TIMESTAMPTZ := NOW();
+  v_expires TIMESTAMPTZ;
+  v_scope TEXT;
+  v_ent_id UUID;
+  v_ent_ids UUID[] := ARRAY[]::UUID[];
+BEGIN
+  SELECT * INTO v_payment FROM payments WHERE id = p_payment_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'payment not found' USING ERRCODE = 'P0002';
+  END IF;
+  IF v_payment.user_id <> p_user_id THEN
+    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+  IF v_payment.provider <> 'razorpay' THEN
+    RAISE EXCEPTION 'invalid payment provider' USING ERRCODE = 'P0001';
+  END IF;
+  IF v_payment.status <> 'awaiting_submission' THEN
+    RAISE EXCEPTION 'invalid transition from %', v_payment.status USING ERRCODE = 'P0001';
+  END IF;
+  IF v_payment.version <> p_expected_version THEN
+    RAISE EXCEPTION 'version conflict' USING ERRCODE = '40001';
+  END IF;
+  IF v_payment.intent_expires_at < v_now THEN
+    RAISE EXCEPTION 'intent expired' USING ERRCODE = 'P0001';
+  END IF;
+
+  v_expires := v_now + make_interval(days => v_payment.duration_days);
+
+  UPDATE payments SET
+    status = 'approved',
+    approved_at = v_now,
+    notes = 'Razorpay payment ' || p_razorpay_payment_id,
+    version = version + 1
+  WHERE id = p_payment_id;
+
+  FOREACH v_scope IN ARRAY v_payment.scopes LOOP
+    INSERT INTO entitlements (user_id, scope, source_payment_id, granted_at, expires_at)
+    VALUES (v_payment.user_id, v_scope, v_payment.id, v_now, v_expires)
+    RETURNING id INTO v_ent_id;
+
+    INSERT INTO entitlement_events (entitlement_id, event_type, actor_type, metadata)
+    VALUES (v_ent_id, 'granted', 'system',
+            jsonb_build_object(
+              'payment_id', v_payment.id,
+              'scope', v_scope,
+              'expires_at', v_expires,
+              'provider', 'razorpay'
+            ));
+
+    v_ent_ids := array_append(v_ent_ids, v_ent_id);
+  END LOOP;
+
+  INSERT INTO payment_events (payment_id, event_type, from_status, to_status, actor_type, metadata)
+  VALUES (v_payment.id, 'razorpay.payment.verified', 'awaiting_submission', 'approved', 'system',
+          jsonb_build_object(
+            'razorpay_order_id', p_razorpay_order_id,
+            'razorpay_payment_id', p_razorpay_payment_id,
+            'entitlement_ids', to_jsonb(v_ent_ids)
+          ));
+
+  RETURN jsonb_build_object('payment_id', v_payment.id, 'entitlement_ids', v_ent_ids, 'expires_at', v_expires);
+END $$ LANGUAGE plpgsql;
+
 -- reject_payment
 CREATE OR REPLACE FUNCTION reject_payment(
   p_payment_id UUID,
@@ -466,6 +540,34 @@ BEGIN
 
   INSERT INTO payment_events (payment_id, event_type, from_status, to_status, actor_type, actor_id)
   VALUES (p_payment_id, 'cancelled', v_payment.status, 'cancelled', 'user', p_user_id);
+
+  RETURN jsonb_build_object('payment_id', p_payment_id);
+END $$ LANGUAGE plpgsql;
+
+-- admin_cancel_payment (admin-side, only from open intents)
+CREATE OR REPLACE FUNCTION admin_cancel_payment(
+  p_payment_id UUID,
+  p_admin_id UUID,
+  p_expected_version INTEGER
+) RETURNS JSONB AS $$
+DECLARE
+  v_payment payments%ROWTYPE;
+BEGIN
+  SELECT * INTO v_payment FROM payments WHERE id = p_payment_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'payment not found' USING ERRCODE = 'P0002'; END IF;
+  IF v_payment.status NOT IN ('created','awaiting_submission') THEN
+    RAISE EXCEPTION 'invalid transition from %', v_payment.status USING ERRCODE = 'P0001';
+  END IF;
+  IF v_payment.version <> p_expected_version THEN
+    RAISE EXCEPTION 'version conflict' USING ERRCODE = '40001';
+  END IF;
+
+  UPDATE payments
+    SET status = 'cancelled', version = version + 1
+    WHERE id = p_payment_id;
+
+  INSERT INTO payment_events (payment_id, event_type, from_status, to_status, actor_type, actor_id)
+  VALUES (p_payment_id, 'cancelled', v_payment.status, 'cancelled', 'admin', p_admin_id);
 
   RETURN jsonb_build_object('payment_id', p_payment_id);
 END $$ LANGUAGE plpgsql;

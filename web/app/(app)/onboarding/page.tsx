@@ -9,6 +9,7 @@ import { ArrowRight, Check, ChevronLeft, Sun, Moon } from "lucide-react";
 import { Pill, PrimaryButton } from "@/components/unisage/primitives";
 import { useTheme } from "@/lib/hooks/useTheme";
 import { cn } from "@/lib/utils";
+import { SPECIALIZATIONS } from "@/lib/specializations";
 
 interface College {
   id: string;
@@ -35,6 +36,9 @@ export default function OnboardingPage() {
   );
   const [branchCode, setBranchCode] = useState<string>(user?.branchCode || "");
   const [semester, setSemester] = useState<number>(user?.semester || 0);
+  const [specialization, setSpecialization] = useState<string>(
+    user?.specialization || "",
+  );
   const [enrollment, setEnrollment] = useState<string>(
     user?.enrollmentNumber || "",
   );
@@ -55,10 +59,19 @@ export default function OnboardingPage() {
       .catch(() => setBranches([]));
   }, [collegeCode]);
 
+  useEffect(() => {
+    if (semester < 4) setSpecialization("");
+  }, [semester]);
+
   const yearFromSemester = (s: number) => Math.ceil(s / 2);
 
   const canContinue =
-    step === 1 ? !!collegeCode : !!branchCode && !!semester && !!enrollment;
+    step === 1
+      ? !!collegeCode
+      : !!branchCode &&
+        !!semester &&
+        !!enrollment &&
+        (semester < 4 || !!specialization);
 
   const onContinue = async () => {
     if (!canContinue) return;
@@ -70,6 +83,7 @@ export default function OnboardingPage() {
         branchCode,
         year: yearFromSemester(semester),
         semester,
+        specialization: semester >= 4 ? specialization : null,
         enrollmentNumber: enrollment,
       });
       await refreshUser();
@@ -209,6 +223,38 @@ export default function OnboardingPage() {
                 })}
               </div>
             </div>
+
+            {semester >= 4 && (
+              <div className="mt-6">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+                  Specialization
+                </p>
+                <div className="space-y-2">
+                  {SPECIALIZATIONS.map((item) => {
+                    const active = specialization === item.code;
+                    return (
+                      <button
+                        key={item.code}
+                        onClick={() => setSpecialization(item.code)}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-[12px] border px-4 py-3 text-left transition-colors",
+                          active
+                            ? "border-mint-500 bg-mint-500/10"
+                            : "border-white/[0.08] bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--bg-subtle))]",
+                        )}
+                      >
+                        <span className="text-[13px] font-medium text-[rgb(var(--fg))]">
+                          {item.label}
+                        </span>
+                        {active && (
+                          <Check className="h-4 w-4 shrink-0 text-mint-400" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="mt-6">
               <label className="mb-2 block text-[10px] font-semibold uppercase tracking-cap text-chalk-500">

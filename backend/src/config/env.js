@@ -19,6 +19,8 @@ require("dotenv").config();
  * @property {number} RATE_LIMIT_WINDOW_MS - Rate limit window in ms
  * @property {number} RATE_LIMIT_MAX - Max requests per window
  * @property {string} LOG_LEVEL - Winston log level
+ * @property {string} RAZORPAY_KEY_ID - Razorpay public key id
+ * @property {string} RAZORPAY_KEY_SECRET - Razorpay private key secret
  */
 
 /** @type {string[]} Required environment variables that must be set */
@@ -29,6 +31,8 @@ const REQUIRED_VARS = [
   "JWT_SECRET",
   "UPI_VPA",
   "UPI_PAYEE_NAME",
+  "RAZORPAY_KEY_ID",
+  "RAZORPAY_KEY_SECRET",
 ];
 
 /**
@@ -82,6 +86,10 @@ const env = {
   PAYMENT_INTENT_TTL_HOURS: parseInt(process.env.PAYMENT_INTENT_TTL_HOURS, 10) || 24,
   PAYMENT_SUBMISSION_TTL_HOURS:
     parseInt(process.env.PAYMENT_SUBMISSION_TTL_HOURS, 10) || 72,
+
+  // Payments — Razorpay Standard Checkout
+  RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID,
+  RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET,
 
   // Background jobs: defaults to true. Set RUN_BACKGROUND_JOBS=false on
   // additional instances when scaling horizontally to avoid duplicate runs.

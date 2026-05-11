@@ -36,7 +36,7 @@ async function authMiddleware(req, res, next) {
     const { data: user, error } = await supabase
       .from("users")
       .select(
-        "id, email, full_name, role, permissions, is_active, college_id, branch_id, year, semester"
+        "id, email, full_name, role, permissions, is_active, college_id, branch_id, year, semester, specialization"
       )
       .eq("id", decoded.userId)
       .single();
@@ -60,6 +60,7 @@ async function authMiddleware(req, res, next) {
       branchId: user.branch_id,
       year: user.year,
       semester: user.semester,
+      specialization: user.specialization,
     };
 
     // 5. Update last_active timestamp (fire-and-forget — don't block the request)

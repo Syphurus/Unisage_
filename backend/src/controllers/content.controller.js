@@ -13,6 +13,15 @@ const {
   EntitlementRequiredError,
 } = require("../modules/entitlements/entitlement.middleware");
 
+function contentDisposition(disposition, filename) {
+  const fallback = String(filename || "download")
+    .replace(/[\\"]/g, "")
+    .replace(/[^\x20-\x7E]/g, "_");
+  const encoded = encodeURIComponent(filename || "download");
+
+  return `${disposition}; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+}
+
 /**
  * GET /api/content/:id
  * Get a single content item by ID.
@@ -79,7 +88,7 @@ async function downloadFile(req, res, next) {
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${fileInfo.original_filename}"`
+      contentDisposition("attachment", fileInfo.original_filename)
     );
     res.setHeader("Content-Type", fileInfo.mime_type || "application/octet-stream");
     res.setHeader("Content-Length", fileInfo.file_size);
@@ -117,7 +126,7 @@ async function viewFile(req, res, next) {
 
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="${fileInfo.original_filename}"`
+      contentDisposition("inline", fileInfo.original_filename)
     );
     res.setHeader("Content-Type", fileInfo.mime_type || "application/pdf");
     res.setHeader("Content-Length", fileInfo.file_size);

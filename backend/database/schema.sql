@@ -125,6 +125,7 @@ CREATE TABLE users (
   branch_id UUID REFERENCES branches(id),
   year INTEGER CHECK (year BETWEEN 1 AND 4),
   semester INTEGER CHECK (semester BETWEEN 1 AND 8),
+  specialization TEXT,
   enrollment_number TEXT,
   role TEXT DEFAULT 'student' CHECK (role IN ('student', 'admin')),
   is_active BOOLEAN DEFAULT true,

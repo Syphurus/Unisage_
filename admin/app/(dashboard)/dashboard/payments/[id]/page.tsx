@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   CheckCircle2,
+  Ban,
   XCircle,
   AlertTriangle,
   ExternalLink,
@@ -49,6 +50,7 @@ export default function PaymentDetailPage() {
   const [confirm, setConfirm] = useState<
     | { kind: "approve"; note: string }
     | { kind: "reject"; reason: string }
+    | { kind: "cancel" }
     | { kind: "revoke"; reason: string }
     | null
   >(null);
@@ -68,7 +70,10 @@ export default function PaymentDetailPage() {
         <TopBar title="Payment" />
         <div className="p-6">
           <p className="text-red-600">Failed to load: {error?.message}</p>
-          <Link href="/dashboard/payments" className="text-sm underline mt-2 inline-block">
+          <Link
+            href="/dashboard/payments"
+            className="text-sm underline mt-2 inline-block"
+          >
             ← Back to queue
           </Link>
         </div>
@@ -79,6 +84,8 @@ export default function PaymentDetailPage() {
   const { payment, user: payer, events, upload } = data;
   const badge = STATUS_BADGE[payment.status];
   const canActOnPending = payment.status === "pending_verification";
+  const canCancelOpen =
+    payment.status === "created" || payment.status === "awaiting_submission";
   const canRevokeNow = payment.status === "approved" && canRevoke;
 
   async function doConfirm() {
@@ -91,6 +98,9 @@ export default function PaymentDetailPage() {
       } else if (confirm.kind === "reject") {
         await paymentsApi.reject(payment.id, payment.version, confirm.reason);
         toast.success("Payment rejected.");
+      } else if (confirm.kind === "cancel") {
+        await paymentsApi.cancel(payment.id, payment.version);
+        toast.success("Payment cancelled.");
       } else if (confirm.kind === "revoke") {
         const res = await paymentsApi.revoke(
           payment.id,
@@ -178,6 +188,15 @@ export default function PaymentDetailPage() {
                     Reject
                   </Button>
                 </>
+              )}
+              {canCancelOpen && (
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirm({ kind: "cancel" })}
+                >
+                  <Ban className="mr-2 h-4 w-4 text-gray-600" />
+                  Cancel
+                </Button>
               )}
               {canRevokeNow && (
                 <Button
@@ -280,7 +299,9 @@ export default function PaymentDetailPage() {
               <div className="text-xs text-[rgb(var(--muted))] flex flex-wrap gap-3">
                 <span>{upload.mimeType}</span>
                 <span>{(upload.sizeBytes / 1024).toFixed(1)} KB</span>
-                <span className="font-mono">sha256: {upload.sha256.slice(0, 16)}…</span>
+                <span className="font-mono">
+                  sha256: {upload.sha256.slice(0, 16)}…
+                </span>
                 <span className="inline-flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   URL expires in ~60s — refresh to re-issue
@@ -334,7 +355,10 @@ export default function PaymentDetailPage() {
       </div>
 
       {/* Confirm dialog */}
-      <Dialog open={confirm !== null} onOpenChange={(o) => !o && setConfirm(null)}>
+      <Dialog
+        open={confirm !== null}
+        onOpenChange={(o) => !o && setConfirm(null)}
+      >
         <DialogContent>
           {confirm?.kind === "approve" && (
             <>
@@ -424,6 +448,29 @@ export default function PaymentDetailPage() {
                   className="bg-red-600 hover:bg-red-700"
                 >
                   {submitting ? "Revoking…" : "Confirm revoke"}
+                </Button>
+              </div>
+            </>
+          )}
+          {confirm?.kind === "cancel" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Cancel this payment?</DialogTitle>
+                <DialogDescription>
+                  This will move the payment to cancelled and close the open
+                  intent. The user can start a fresh checkout afterwards.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setConfirm(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={doConfirm}
+                  disabled={submitting}
+                  className="bg-gray-800 hover:bg-gray-900"
+                >
+                  {submitting ? "Cancelling…" : "Confirm cancel"}
                 </Button>
               </div>
             </>

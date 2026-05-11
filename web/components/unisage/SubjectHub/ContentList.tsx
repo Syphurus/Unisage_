@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   ArrowRight,
   Calendar,
@@ -9,26 +10,103 @@ import {
   ExternalLink,
   Layers,
 } from "lucide-react";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 import {
   Pill,
   MetaCaption,
   HighlightCard,
   AnnotationBlock,
+  SectionHeader,
 } from "@/components/unisage/primitives";
 import HtmlContent from "@/components/content/HtmlContent";
 import type { Content } from "@/lib/types";
 import type { ContentTabId } from "./ContentTabs";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+const GROUP_ORDER: ContentTabId[] = [
+  "long_notes",
+  "short_notes",
+  "flashcard",
+  "quiz",
+  "exam_tips",
+  "pyqs",
+  "syllabus",
+  "assignments",
+];
+
+function authHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function fetchRemoteFile(url: string) {
+  const response = await fetch(url, {
+    headers: authHeaders(),
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+
+  return { blob, filename: match?.[1] || "download" };
+}
+
+async function openRemoteFile(url: string) {
+  const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+  if (!previewWindow) {
+    throw new Error("Popup blocked");
+  }
+
+  const { blob } = await fetchRemoteFile(url);
+  const objectUrl = URL.createObjectURL(blob);
+  previewWindow.location.href = objectUrl;
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+}
+
+async function downloadRemoteFile(url: string, fallbackName: string) {
+  const { blob, filename } = await fetchRemoteFile(url);
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename || fallbackName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+}
+
 export function ContentList({
   type,
   items,
 }: {
-  type: ContentTabId;
+  type: ContentTabId | "all";
   items: Content[];
 }) {
+  if (type === "all") {
+    const grouped = GROUP_ORDER.map((key) => ({
+      key,
+      items: items.filter((item) => item.type === key),
+    })).filter((group) => group.items.length > 0);
+
+    return (
+      <div className="space-y-10">
+        {grouped.map((group) => (
+          <section key={group.key}>
+            <SectionHeader title={humanType(group.key)} />
+            <div className="mt-5">
+              <ContentList type={group.key} items={group.items} />
+            </div>
+          </section>
+        ))}
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="py-16 text-center">
@@ -36,7 +114,7 @@ export function ContentList({
           No {humanType(type)} published yet for this scope.
         </p>
         <p className="mt-2 text-[12px] text-chalk-500">
-          Switch units, or check back soon — content drops weekly.
+          Switch units, or check back soon - content drops weekly.
         </p>
       </div>
     );
@@ -81,9 +159,23 @@ function humanType(t: ContentTabId): string {
   )[t];
 }
 
-// ─────────────────────────────────────────────────────────
-// Long / Short notes — preview cards in a grid
-// ─────────────────────────────────────────────────────────
+function previewTextFromContent(data: any) {
+  const source = String(
+    data?.summary || data?.tldr || data?.html || data?.content || "",
+  );
+  return source
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/:root\s*\{[\s\S]*?\}/gi, " ")
+    .replace(/--[\w-]+\s*:\s*[^;{}]+;?/g, " ")
+    .replace(/\b[a-z-]+\s*:\s*#[0-9a-f]{3,8};?/gi, " ")
+    .replace(/\b[a-z-]+\s*:\s*(?:rgb|rgba|hsl|hsla)\([^)]*\);?/gi, " ")
+    .replace(/\{[^{}]*\}/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function NotesGrid({
   items,
   compact,
@@ -95,20 +187,15 @@ function NotesGrid({
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
       {items.map((c) => {
         const data = c.data as any;
-        const previewHtml: string =
-          (data?.summary || data?.tldr || data?.html || data?.content || "") + "";
-        const stripped = previewHtml.replace(/<[^>]+>/g, "").trim();
+        const stripped = previewTextFromContent(data);
         const preview =
-          stripped.length > 200 ? stripped.slice(0, 200) + "…" : stripped;
+          stripped.length > 200 ? stripped.slice(0, 200) + "..." : stripped;
         return (
           <Link
             key={c.id}
             href={`/content/${c.id}`}
             className="group flex flex-col rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 transition-all hover:border-white/[0.14] hover:bg-[rgb(var(--bg-subtle))]"
           >
-            <MetaCaption>
-              {c.unit?.subject?.code ?? ""} · {c.unit?.title ?? "Topic"}
-            </MetaCaption>
             <h3 className="mt-2 text-[17px] lg:text-[18px] font-semibold leading-snug text-[rgb(var(--fg))]">
               {c.title}
             </h3>
@@ -135,9 +222,6 @@ function NotesGrid({
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// Flashcards (decks)
-// ─────────────────────────────────────────────────────────
 function FlashcardsList({ items }: { items: Content[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
@@ -175,9 +259,6 @@ function FlashcardsList({ items }: { items: Content[] }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// Quizzes
-// ─────────────────────────────────────────────────────────
 function QuizList({ items }: { items: Content[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
@@ -217,9 +298,6 @@ function QuizList({ items }: { items: Content[] }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// PYQs
-// ─────────────────────────────────────────────────────────
 function PyqList({ items }: { items: Content[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4">
@@ -230,14 +308,27 @@ function PyqList({ items }: { items: Content[] }) {
   );
 }
 
-/**
- * Card with a real "Open" (inline view) and "Download" link, hitting
- * the backend file routes that serve files associated with a content row.
- */
 function FileCard({ content: c }: { content: Content }) {
   const data = c.data as any;
   const viewUrl = `${API_BASE}/api/content/${c.id}/view`;
   const downloadUrl = `${API_BASE}/api/content/${c.id}/download`;
+
+  const handleOpen = async () => {
+    try {
+      await openRemoteFile(viewUrl);
+    } catch {
+      toast.error("Could not open this file.");
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      await downloadRemoteFile(downloadUrl, c.title);
+    } catch {
+      toast.error("Could not download this file.");
+    }
+  };
+
   return (
     <div className="group rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4 lg:p-5 transition-all hover:border-white/[0.14] hover:bg-[rgb(var(--bg-subtle))]">
       <div className="flex items-start gap-3">
@@ -259,31 +350,26 @@ function FileCard({ content: c }: { content: Content }) {
         </div>
       </div>
       <div className="mt-4 flex items-center gap-2">
-        <a
-          href={viewUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={handleOpen}
           className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-pill border border-mint-500/30 bg-mint-500/10 px-3 py-1.5 text-[12px] font-semibold text-mint-400 hover:bg-mint-500/15 transition-colors"
         >
           <ExternalLink className="h-3.5 w-3.5" /> Open
-        </a>
-        <a
-          href={downloadUrl}
-          download
+        </button>
+        <button
+          type="button"
+          onClick={handleDownload}
           className="inline-flex items-center justify-center gap-1.5 rounded-pill border border-white/[0.08] px-3 py-1.5 text-[12px] font-medium text-chalk-300 hover:bg-white/[0.05] transition-colors"
         >
           <Download className="h-3.5 w-3.5" />
-        </a>
+        </button>
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// Exam tips
-// ─────────────────────────────────────────────────────────
 function ExamTipsList({ items }: { items: Content[] }) {
-  // Try to render flat tips list inline
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
       {items.map((c) => {
@@ -299,9 +385,6 @@ function ExamTipsList({ items }: { items: Content[] }) {
             href={`/content/${c.id}`}
             className="group rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 transition-all hover:border-white/[0.14] hover:bg-[rgb(var(--bg-subtle))]"
           >
-            <MetaCaption>
-              {tips.length} plays · {c.unit?.title ?? "General"}
-            </MetaCaption>
             <h3 className="mt-2 text-[17px] font-semibold leading-snug text-[rgb(var(--fg))]">
               {c.title}
             </h3>
@@ -312,9 +395,6 @@ function ExamTipsList({ items }: { items: Content[] }) {
                     key={i}
                     className="flex gap-2 text-[12.5px] text-chalk-300"
                   >
-                    <span className="text-chalk-500 font-mono">
-                      P-{String(i + 1).padStart(2, "0")}
-                    </span>
                     <span className="truncate">
                       {t.title || t.heading || "Tactic"}
                     </span>
@@ -333,9 +413,6 @@ function ExamTipsList({ items }: { items: Content[] }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// Predictor papers
-// ─────────────────────────────────────────────────────────
 function PredictorList({ items }: { items: Content[] }) {
   return (
     <div className="space-y-4">
@@ -402,9 +479,6 @@ function Stat({
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// Syllabus
-// ─────────────────────────────────────────────────────────
 function SyllabusList({ items }: { items: Content[] }) {
   return (
     <div className="space-y-4">
@@ -412,7 +486,7 @@ function SyllabusList({ items }: { items: Content[] }) {
         const data = c.data as any;
         const hasInlineContent =
           data?.html || (Array.isArray(data?.topics) && data.topics.length);
-        // If syllabus is just a file (PDF), render as a file card
+
         if (!hasInlineContent) {
           return (
             <div key={c.id} className="max-w-md">
@@ -420,6 +494,7 @@ function SyllabusList({ items }: { items: Content[] }) {
             </div>
           );
         }
+
         return (
           <article
             key={c.id}
@@ -427,19 +502,23 @@ function SyllabusList({ items }: { items: Content[] }) {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <MetaCaption>{c.unit?.title ?? "Subject"}</MetaCaption>
                 <h3 className="mt-2 text-[18px] font-semibold text-[rgb(var(--fg))]">
                   {c.title}
                 </h3>
               </div>
-              <a
-                href={`${API_BASE}/api/content/${c.id}/download`}
-                download
+              <button
+                type="button"
+                onClick={() =>
+                  downloadRemoteFile(
+                    `${API_BASE}/api/content/${c.id}/download`,
+                    c.title
+                  )
+                }
                 aria-label="Download syllabus"
                 className="grid h-9 w-9 place-items-center rounded-full text-chalk-300 hover:bg-white/[0.05]"
               >
                 <Download className="h-4 w-4" />
-              </a>
+              </button>
             </div>
             {data?.html ? (
               <div className="prose-notes mt-4">
@@ -448,10 +527,7 @@ function SyllabusList({ items }: { items: Content[] }) {
             ) : data?.topics && Array.isArray(data.topics) ? (
               <ul className="mt-3 space-y-1.5">
                 {data.topics.map((t: string, i: number) => (
-                  <li
-                    key={i}
-                    className="flex gap-2 text-[13px] text-chalk-300"
-                  >
+                  <li key={i} className="flex gap-2 text-[13px] text-chalk-300">
                     <span className="text-chalk-500 font-mono shrink-0">
                       {String(i + 1).padStart(2, "0")}
                     </span>
@@ -475,9 +551,6 @@ function SyllabusList({ items }: { items: Content[] }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// Assignments
-// ─────────────────────────────────────────────────────────
 function AssignmentList({ items }: { items: Content[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
@@ -517,27 +590,33 @@ function AssignmentList({ items }: { items: Content[] }) {
                         : "text-chalk-400"
                   }
                 >
-                  · Due in {dueIn} day{dueIn === 1 ? "" : "s"}
+                  - Due in {dueIn} day{dueIn === 1 ? "" : "s"}
                 </span>
               )}
             </div>
             <div className="mt-4 flex items-center gap-2">
-              <a
-                href={`${API_BASE}/api/content/${c.id}/view`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() =>
+                  openRemoteFile(`${API_BASE}/api/content/${c.id}/view`)
+                }
                 className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-pill border border-mint-500/30 bg-mint-500/10 px-3 py-1.5 text-[12px] font-semibold text-mint-400 hover:bg-mint-500/15 transition-colors"
               >
                 <ExternalLink className="h-3.5 w-3.5" /> Open
-              </a>
-              <a
-                href={`${API_BASE}/api/content/${c.id}/download`}
-                download
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  downloadRemoteFile(
+                    `${API_BASE}/api/content/${c.id}/download`,
+                    c.title
+                  )
+                }
                 aria-label="Download assignment"
                 className="inline-flex items-center justify-center gap-1.5 rounded-pill border border-white/[0.08] px-3 py-1.5 text-[12px] font-medium text-chalk-300 hover:bg-white/[0.05] transition-colors"
               >
                 <Download className="h-3.5 w-3.5" />
-              </a>
+              </button>
             </div>
           </div>
         );

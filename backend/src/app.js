@@ -87,6 +87,7 @@ app.use(
       "Idempotency-Key",
       "If-Match",
     ],
+    exposedHeaders: ["Content-Disposition", "Content-Length", "Content-Type"],
     credentials: true,
     maxAge: 86400, // preflight cache: 24 hours
   })

@@ -17,7 +17,7 @@ async function optionalAuth(req, _res, next) {
     const decoded = verifyToken(token);
     const { data: user, error } = await supabase
       .from("users")
-      .select("id, email, full_name, role, college_id, branch_id, year, semester, is_active")
+      .select("id, email, full_name, role, college_id, branch_id, year, semester, specialization, is_active")
       .eq("id", decoded.userId)
       .single();
 
@@ -32,6 +32,7 @@ async function optionalAuth(req, _res, next) {
       branchId: user.branch_id,
       year: user.year,
       semester: user.semester,
+      specialization: user.specialization,
     };
   } catch (_) {
     // Ignore invalid optional auth token and continue anonymous.

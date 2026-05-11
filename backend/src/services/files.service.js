@@ -7,6 +7,7 @@ const path = require("path");
 const { randomUUID } = require("crypto");
 const { supabase } = require("../config/database");
 const logger = require("../utils/logger");
+const { NotFoundError, ValidationError } = require("../utils/errors");
 
 // Files storage directory
 const FILES_DIR = path.join(__dirname, "../../uploads");
@@ -110,11 +111,11 @@ async function getFileBuffer(storedFilename) {
     const resolvedPath = path.resolve(filePath);
     const resolvedDir = path.resolve(FILES_DIR);
     if (!resolvedPath.startsWith(resolvedDir)) {
-      throw new Error("Invalid file path");
+      throw new ValidationError("Invalid file path");
     }
 
     if (!fs.existsSync(filePath)) {
-      throw new Error("File not found on disk");
+      throw new NotFoundError("File on disk");
     }
 
     return fs.readFileSync(filePath);
@@ -123,6 +124,9 @@ async function getFileBuffer(storedFilename) {
       storedFilename,
       error: err.message,
     });
+    if (err.isOperational) {
+      throw err;
+    }
     throw new Error("Failed to retrieve file");
   }
 }

@@ -17,7 +17,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     user?.collegeCode &&
     user?.branchCode &&
     user?.year &&
-    user?.semester
+    user?.semester &&
+    (user.semester < 4 || user.specialization)
   );
 
   useEffect(() => {

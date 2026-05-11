@@ -6,6 +6,7 @@
  *   GET   /api/admin/payments/:id
  *   POST  /api/admin/payments/:id/approve  (If-Match required)
  *   POST  /api/admin/payments/:id/reject   (If-Match required)
+ *   POST  /api/admin/payments/:id/cancel   (If-Match required)
  *   POST  /api/admin/payments/:id/revoke   (If-Match required; payments.revoke permission)
  *
  * Chain: auth → adminAuth → permissionAuth(['payments.review' or 'payments.revoke'])
@@ -73,6 +74,14 @@ router.post(
   validate(validators.adminReject),
   idempotency(),
   controller.reject
+);
+
+router.post(
+  "/:id/cancel",
+  permissionAuth(["payments.review", "payments.revoke"]),
+  validate(validators.paymentIdParam),
+  idempotency(),
+  controller.cancel
 );
 
 router.post(

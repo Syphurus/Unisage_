@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -422,13 +423,36 @@ function ExamTipsView({ content }: { content: Content }) {
   }
 
   return (
-    <div className="mt-2 space-y-3">
+    <div className="mt-2 grid grid-cols-1 gap-10 lg:grid-cols-12">
+      {tips.length > 0 && (
+        <aside className="hidden lg:block lg:col-span-3 lg:order-2">
+          <div className="sticky top-8 max-h-[calc(100vh-4rem)] overflow-y-auto border-l border-white/[0.06] pl-4">
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+              Outline
+            </p>
+            <nav className="space-y-1">
+              {tips.map((t, i) => (
+                <a
+                  key={i}
+                  href={`#exam-tip-${i + 1}`}
+                  className="block rounded-sm py-1 text-[12.5px] leading-snug text-chalk-400 transition-colors hover:text-mint-400"
+                >
+                  {t.title || t.heading || `Tip ${i + 1}`}
+                </a>
+              ))}
+            </nav>
+          </div>
+        </aside>
+      )}
+      <div className="space-y-3 lg:col-span-9 lg:order-1">
       {tips.length === 0 ? (
         <p className="text-[13px] text-chalk-400">No tips yet.</p>
       ) : (
         tips.map((t, i) => (
           <article
             key={i}
+            id={`exam-tip-${i + 1}`}
+            data-rv-heading="1"
             className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4"
           >
             <div className="flex items-baseline justify-between gap-2 mb-2">
@@ -448,6 +472,7 @@ function ExamTipsView({ content }: { content: Content }) {
           </article>
         ))
       )}
+      </div>
     </div>
   );
 }
@@ -474,7 +499,11 @@ function PredictorPaperView({ content }: { content: Content }) {
   // Rich predictions[] shape — the canonical worksheet/PYQ-backed format.
   // Detected by the presence of a non-empty predictions array.
   if (Array.isArray(data?.predictions) && data.predictions.length > 0) {
-    return <RichPredictorView data={data} />;
+    return (
+      <ProtectedPredictorShell>
+        <RichPredictorView data={data} />
+      </ProtectedPredictorShell>
+    );
   }
 
   // Resolve html from any common location.
@@ -483,9 +512,11 @@ function PredictorPaperView({ content }: { content: Content }) {
 
   if (html) {
     return (
-      <div className="prose-notes mt-2">
-        <HtmlContent html={html} />
-      </div>
+      <ProtectedPredictorShell>
+        <div className="prose-notes mt-2">
+          <HtmlContent html={html} />
+        </div>
+      </ProtectedPredictorShell>
     );
   }
 
@@ -538,7 +569,8 @@ function PredictorPaperView({ content }: { content: Content }) {
   const meta = data?.meta ?? data?.predicted_paper?.meta ?? data?.paper?.meta ?? {};
 
   return (
-    <div className="mt-2 space-y-6">
+    <ProtectedPredictorShell>
+      <div className="mt-2 space-y-6">
       {/* Meta */}
       <div className="grid grid-cols-3 gap-2 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-4">
         <Stat label="Time" value={meta.duration || "3 hours"} />
@@ -611,6 +643,106 @@ function PredictorPaperView({ content }: { content: Content }) {
             </div>
           </section>
         ))
+      )}
+      </div>
+    </ProtectedPredictorShell>
+  );
+}
+
+function ProtectedPredictorShell({ children }: { children: ReactNode }) {
+  const [shielded, setShielded] = useState(false);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const shield = () => {
+      setShielded(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setShielded(false), 1800);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const isPrint = (event.ctrlKey || event.metaKey) && key === "p";
+      const isSave = (event.ctrlKey || event.metaKey) && key === "s";
+      const isCopy = (event.ctrlKey || event.metaKey) && key === "c";
+      const isScreenshotKey =
+        key === "printscreen" ||
+        (event.metaKey && event.shiftKey && ["3", "4", "5"].includes(key));
+
+      if (isPrint || isSave || isCopy || isScreenshotKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        shield();
+      }
+    };
+    const block = (event: Event) => {
+      event.preventDefault();
+      shield();
+    };
+    const handleVisibility = () => {
+      if (document.hidden) setShielded(true);
+    };
+    const handleFocus = () => setShielded(false);
+
+    document.addEventListener("keydown", handleKeyDown, true);
+    document.addEventListener("contextmenu", block, true);
+    document.addEventListener("copy", block, true);
+    document.addEventListener("cut", block, true);
+    document.addEventListener("dragstart", block, true);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("blur", shield);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("beforeprint", shield);
+
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("keydown", handleKeyDown, true);
+      document.removeEventListener("contextmenu", block, true);
+      document.removeEventListener("copy", block, true);
+      document.removeEventListener("cut", block, true);
+      document.removeEventListener("dragstart", block, true);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("blur", shield);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("beforeprint", shield);
+    };
+  }, []);
+
+  return (
+    <div
+      className="relative select-none"
+      style={{
+        WebkitUserSelect: "none",
+        userSelect: "none",
+        WebkitTouchCallout: "none",
+      }}
+    >
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          body::before {
+            content: "Protected predictor content cannot be printed.";
+            visibility: visible !important;
+            display: block;
+            padding: 48px;
+            color: #111;
+            font: 18px system-ui, sans-serif;
+          }
+        }
+      `}</style>
+      <div className={shielded ? "blur-md opacity-20" : ""}>{children}</div>
+      {shielded && (
+        <div className="fixed inset-0 z-[9999] grid place-items-center bg-black/95 px-6 text-center">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-cap text-mint-400">
+              Protected predictor
+            </p>
+            <p className="mt-3 max-w-sm text-[18px] font-semibold text-white">
+              Screenshots, printing, copying, and screen capture shortcuts are disabled here.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

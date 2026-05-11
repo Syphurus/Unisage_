@@ -1,0 +1,6 @@
+.DS_Store
+.claude/
+.next/
+web/.next/
+web/.next.codex-build-stale/
+node_modules/

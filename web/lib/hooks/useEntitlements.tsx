@@ -91,6 +91,7 @@ export function EntitlementsProvider({ children }: { children: ReactNode }) {
 
 export function useEntitlements(): EntitlementsContextValue {
   const v = useContext(Ctx);
-  if (!v) throw new Error("useEntitlements must be used within EntitlementsProvider");
+  if (!v)
+    throw new Error("useEntitlements must be used within EntitlementsProvider");
   return v;
 }
