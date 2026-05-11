@@ -62,6 +62,7 @@ export function PaymentModal({ open, onOpenChange, scope }: PaymentModalProps) {
   const [scriptReady, setScriptReady] = useState(false);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [razorpayOfferId, setRazorpayOfferId] = useState("");
 
   useEffect(() => {
     if (!open || plans.length) return;
@@ -106,7 +107,10 @@ export function PaymentModal({ open, onOpenChange, scope }: PaymentModalProps) {
     setError(null);
 
     try {
-      const order = await paymentsApi.createRazorpayOrder(selectedPlan.id);
+      const order = await paymentsApi.createRazorpayOrder(
+        selectedPlan.id,
+        razorpayOfferId.trim() || undefined
+      );
       const checkout = new window.Razorpay({
         key: order.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
         amount: order.amount,
@@ -207,6 +211,23 @@ export function PaymentModal({ open, onOpenChange, scope }: PaymentModalProps) {
                 ₹{selectedPlan.amountInr}
               </p>
             )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="razorpay-offer-id"
+              className="text-[11px] font-semibold uppercase tracking-cap text-chalk-500"
+            >
+              Coupon code
+            </label>
+            <input
+              id="razorpay-offer-id"
+              value={razorpayOfferId}
+              onChange={(event) => setRazorpayOfferId(event.target.value)}
+              placeholder="Paste Razorpay offer code"
+              disabled={paying || loadingPlans}
+              className="mt-2 w-full rounded-[12px] border border-white/[0.08] bg-[rgb(var(--bg-elev))] px-4 py-3 text-[14px] text-[rgb(var(--fg))] placeholder:text-chalk-500 transition-colors focus:border-mint-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            />
           </div>
 
           {error && (
