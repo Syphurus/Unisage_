@@ -34,6 +34,7 @@ const adminRoutes = require("./routes/admin.routes");
 const metaRoutes = require("./routes/meta.routes");
 const paymentRoutes = require("./modules/payments/payment.routes");
 const adminPaymentRoutes = require("./modules/payments/admin.payment.routes");
+const couponRoutes = require("./modules/coupons/coupon.routes");
 const { startJobs } = require("./jobs");
 
 // ──────────────────────────────────────────────
@@ -163,6 +164,8 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/flashcards", flashcardsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/meta", metaRoutes);
+app.use("/api/coupons", couponRoutes);
+app.use("/api/payment", paymentRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admin/payments", adminPaymentRoutes);
 

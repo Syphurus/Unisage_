@@ -50,6 +50,7 @@ async function createRazorpayOrder(req, res, next) {
     const result = await paymentService.createRazorpayOrder({
       user: req.user,
       planId: req.body.planId,
+      couponCode: req.body.couponCode,
       req,
     });
     res.status(201).json({ success: true, data: result });

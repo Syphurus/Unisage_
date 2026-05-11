@@ -15,6 +15,7 @@ const createIntent = {
 const createRazorpayOrder = {
   body: Joi.object({
     planId: uuid,
+    couponCode: Joi.string().trim().max(32).allow("").optional(),
   }),
 };
 

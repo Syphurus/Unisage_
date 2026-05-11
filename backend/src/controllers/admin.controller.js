@@ -737,10 +737,14 @@ async function createContent(req, res, next) {
         data.fileId = fileInfo.id;
         data.filename = fileInfo.originalFilename;
       } catch (fileErr) {
-        logger.error("File upload failed, but content created", {
+        await supabase.from("content").delete().eq("id", data.id);
+        logger.error("File upload failed; removed created content", {
           contentId: data.id,
           error: fileErr.message,
         });
+        throw new ValidationError(
+          "File upload failed. Check the Supabase Storage bucket and try again."
+        );
       }
     }
 
@@ -824,10 +828,13 @@ async function updateContent(req, res, next) {
           req.file.originalname;
       }
     } catch (fileErr) {
-      logger.warn("Failed to replace file during update", {
+      logger.error("Failed to replace file during update", {
         contentId: id,
         error: fileErr.message,
       });
+      throw new ValidationError(
+        "File replacement failed. Check the Supabase Storage bucket and try again."
+      );
     }
 
     res.json({ success: true, data });

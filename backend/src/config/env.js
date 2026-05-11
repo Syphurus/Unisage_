@@ -13,6 +13,7 @@ require("dotenv").config();
  * @property {string} SUPABASE_URL - Supabase project URL
  * @property {string} SUPABASE_SERVICE_KEY - Supabase service role key
  * @property {string} SUPABASE_ANON_KEY - Supabase anonymous key
+ * @property {string} CONTENT_FILE_BUCKET - Supabase Storage bucket for study PDFs/files
  * @property {string} JWT_SECRET - Secret for signing JWTs
  * @property {string} JWT_EXPIRES_IN - JWT expiration period
  * @property {string[]} CORS_ORIGINS - Allowed CORS origins
@@ -64,6 +65,7 @@ const env = {
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY,
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+  CONTENT_FILE_BUCKET: process.env.CONTENT_FILE_BUCKET || "content-files",
 
   // JWT
   JWT_SECRET: process.env.JWT_SECRET,

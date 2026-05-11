@@ -4,8 +4,10 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { AlertCircle, ArrowRight, Loader2, Sparkles, X } from "lucide-react";
+import { AlertCircle, ArrowRight, BadgeIndianRupee, Loader2, Sparkles, X } from "lucide-react";
+import { CouponCard } from "@/components/billing/CouponCard";
 import { paymentsApi, type Plan } from "@/lib/api/payments";
+import { useCoupon } from "@/lib/hooks/useCoupon";
 
 declare global {
   interface Window {
@@ -42,6 +44,11 @@ interface RazorpayOptions {
   };
   theme?: {
     color?: string;
+  };
+  config?: {
+    display?: {
+      hide?: Array<{ method: string }>;
+    };
   };
   modal?: {
     ondismiss?: () => void;
@@ -92,6 +99,29 @@ export function PaymentModal({ open, onOpenChange, scope }: PaymentModalProps) {
     return plans.find((plan) => plan.scopes.includes(scope)) || plans[0];
   }, [plans, scope]);
 
+  const coupon = useCoupon(selectedPlan);
+
+  useEffect(() => {
+    coupon.resetCoupon();
+  }, [selectedPlan?.id]);
+
+  const pricing = useMemo(() => {
+    const originalAmountPaise = selectedPlan?.amountInrPaise || 0;
+    const originalAmount = selectedPlan?.amountInr || "0.00";
+    if (coupon.quote?.valid) {
+      return coupon.quote;
+    }
+    return {
+      originalAmountPaise,
+      originalAmount,
+      discountPaise: 0,
+      discount: "0.00",
+      finalAmountPaise: originalAmountPaise,
+      finalAmount: originalAmount,
+      couponCode: null,
+    };
+  }, [coupon.quote, selectedPlan]);
+
   const handlePay = async () => {
     if (!selectedPlan) {
       setError("Premium plan is not available yet.");
@@ -106,7 +136,10 @@ export function PaymentModal({ open, onOpenChange, scope }: PaymentModalProps) {
     setError(null);
 
     try {
-      const order = await paymentsApi.createRazorpayOrder(selectedPlan.id);
+      const order = await paymentsApi.createRazorpayOrder(
+        selectedPlan.id,
+        coupon.appliedCouponCode
+      );
       const checkout = new window.Razorpay({
         key: order.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
         amount: order.amount,
@@ -116,6 +149,11 @@ export function PaymentModal({ open, onOpenChange, scope }: PaymentModalProps) {
         order_id: order.order_id,
         prefill: order.prefill,
         theme: { color: "#1fb890" },
+        config: {
+          display: {
+            hide: [],
+          },
+        },
         modal: {
           ondismiss: () => {
             setPaying(false);
@@ -195,18 +233,53 @@ export function PaymentModal({ open, onOpenChange, scope }: PaymentModalProps) {
 
         <div className="px-6 pb-6 pt-5 space-y-5">
           <div className="rounded-card border border-white/[0.08] bg-[rgb(var(--bg-elev))] p-5">
-            <p className="text-[10.5px] font-semibold uppercase tracking-cap text-chalk-500">
-              {selectedPlan?.name || "Hosted checkout"}
-            </p>
-            <p className="mt-2 text-[13px] leading-relaxed text-chalk-300">
-              Complete payment through Razorpay. Once the payment is processed,
-              entitlements will refresh automatically.
-            </p>
-            {selectedPlan && (
-              <p className="mt-3 text-[18px] font-semibold text-[rgb(var(--fg))]">
-                ₹{selectedPlan.amountInr}
-              </p>
-            )}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10.5px] font-semibold uppercase tracking-cap text-chalk-500">
+                  {selectedPlan?.name || "Hosted checkout"}
+                </p>
+                <p className="mt-2 text-[13px] leading-relaxed text-chalk-300">
+                  Complete payment through Razorpay. Once the payment is processed,
+                  entitlements will refresh automatically.
+                </p>
+              </div>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-mint-300/20 bg-mint-300/10 text-mint-200">
+                <BadgeIndianRupee className="h-5 w-5" />
+              </span>
+            </div>
+          </div>
+
+          <CouponCard
+            code={coupon.code}
+            onCodeChange={(value) => {
+              coupon.setCode(value);
+              if (coupon.state === "applied") coupon.clearAppliedCoupon();
+            }}
+            onApply={coupon.applyCoupon}
+            onRemove={coupon.resetCoupon}
+            state={coupon.state}
+            message={coupon.message}
+            disabled={paying || loadingPlans || !selectedPlan}
+          />
+
+          <div className="rounded-card border border-white/[0.08] bg-black/20 p-4">
+            <div className="flex items-center justify-between text-[13px] text-chalk-300">
+              <span>Subtotal</span>
+              <span>₹{pricing.originalAmount}</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[13px] text-emerald-200">
+              <span>Coupon Discount</span>
+              <span>-₹{pricing.discount}</span>
+            </div>
+            <div className="my-3 h-px bg-white/[0.08]" />
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-semibold text-[rgb(var(--fg))]">
+                Final Total
+              </span>
+              <span className="text-[22px] font-semibold tracking-[-0.01em] text-[rgb(var(--fg))]">
+                ₹{pricing.finalAmount}
+              </span>
+            </div>
           </div>
 
           {error && (
@@ -218,7 +291,7 @@ export function PaymentModal({ open, onOpenChange, scope }: PaymentModalProps) {
 
           <button
             onClick={handlePay}
-            disabled={paying || loadingPlans || !selectedPlan}
+            disabled={paying || loadingPlans || !selectedPlan || coupon.isValidating}
             className="inline-flex w-full items-center justify-center gap-2 rounded-card bg-mint-500 px-5 py-3.5 text-[14px] font-semibold text-ink-950 shadow-[0_12px_32px_-12px_rgba(31,184,144,0.6)] transition-all hover:bg-mint-400 active:translate-y-px"
           >
             {paying || loadingPlans ? (
@@ -228,7 +301,7 @@ export function PaymentModal({ open, onOpenChange, scope }: PaymentModalProps) {
               </>
             ) : (
               <>
-                Pay {selectedPlan ? `₹${selectedPlan.amountInr}` : "with Razorpay"}
+                Pay {selectedPlan ? `₹${pricing.finalAmount}` : "with Razorpay"}
                 <ArrowRight className="h-4 w-4" />
               </>
             )}

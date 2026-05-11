@@ -37,6 +37,7 @@ Edit `.env` and fill in your Supabase credentials:
 | `SUPABASE_URL`         | Your Supabase project URL (e.g., `https://abc123.supabase.co`)     |
 | `SUPABASE_SERVICE_KEY` | Service role key from Supabase dashboard → Settings → API          |
 | `SUPABASE_ANON_KEY`    | Anon/public key from Supabase dashboard → Settings → API           |
+| `CONTENT_FILE_BUCKET`  | Private Supabase Storage bucket for PYQ/syllabus/assignment files (default: `content-files`) |
 | `JWT_SECRET`           | Random 32+ character string (generate with `openssl rand -hex 32`) |
 | `JWT_EXPIRES_IN`       | Token expiry (default: `7d`)                                       |
 | `CORS_ORIGIN`          | Comma-separated allowed origins                                    |
@@ -48,6 +49,7 @@ Edit `.env` and fill in your Supabase credentials:
 2. Navigate to **SQL Editor**
 3. Copy the contents of `database/schema.sql`
 4. Run the SQL to create all tables, indexes, and RLS policies
+5. Create a private Supabase Storage bucket named `content-files` (or set `CONTENT_FILE_BUCKET` to your bucket name)
 
 ### 4. Run Locally
 
