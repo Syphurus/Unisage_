@@ -91,8 +91,7 @@ export default function SignupPage() {
       : step === 2
         ? !!collegeCode
         : !!branchCode &&
-          semester > 0 &&
-          (semester < 4 || !!specialization);
+          semester > 0;
 
   const onContinue = async () => {
     if (!canContinue) return;
