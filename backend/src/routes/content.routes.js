@@ -12,7 +12,9 @@ const contentController = require("../controllers/content.controller");
 const validate = require("../middleware/validation");
 const validators = require("../utils/validators");
 const optionalAuth = require("../middleware/optionalAuth");
-const { attachEntitlements } = require("../modules/entitlements/entitlement.middleware");
+const {
+  attachEntitlements,
+} = require("../modules/entitlements/entitlement.middleware");
 
 const router = Router();
 
@@ -31,6 +33,11 @@ router.get(
   "/:id/view",
   validate(validators.contentIdParam),
   contentController.viewFile
+);
+router.get(
+  "/:id/signed-url",
+  validate(validators.contentIdParam),
+  contentController.getSignedUrl
 );
 router.get(
   "/:id/download",
