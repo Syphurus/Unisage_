@@ -76,6 +76,12 @@ async function downloadFile(req, res, next) {
   try {
     const { id } = req.params;
 
+    // Ensure entitlement gating for predictor content
+    const content = await contentService.getContentById(id);
+    if (isLockedPredictorContent(content, req.entitlements)) {
+      return next(new EntitlementRequiredError("predictor"));
+    }
+
     const fileInfo = await filesService.getFileByContentId(id);
     if (!fileInfo) {
       return res.status(404).json({
@@ -114,6 +120,12 @@ async function viewFile(req, res, next) {
   try {
     const { id } = req.params;
 
+    // Entitlement gating for predictor content
+    const content = await contentService.getContentById(id);
+    if (isLockedPredictorContent(content, req.entitlements)) {
+      return next(new EntitlementRequiredError("predictor"));
+    }
+
     const fileInfo = await filesService.getFileByContentId(id);
     if (!fileInfo) {
       return res.status(404).json({
@@ -137,4 +149,36 @@ async function viewFile(req, res, next) {
   }
 }
 
-module.exports = { getContentById, getContentByType, downloadFile, viewFile };
+/**
+ * GET /api/content/:id/signed-url
+ * Return a short-lived signed URL for the stored file so the client can
+ * download directly from Supabase Storage.
+ */
+async function getSignedUrl(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    // Enforce entitlement gating for predictor content
+    const content = await contentService.getContentById(id);
+    if (isLockedPredictorContent(content, req.entitlements)) {
+      return next(new EntitlementRequiredError("predictor"));
+    }
+
+    const fileInfo = await filesService.getFileByContentId(id);
+    if (!fileInfo) {
+      return res.status(404).json({ success: false, error: { message: "No file associated with this content" } });
+    }
+
+    // Allow client to request a custom expiry via query (in seconds), capped to 1 hour
+    const requested = parseInt(req.query.expires || "", 10);
+    const expiresIn = Number.isFinite(requested) && requested > 0 ? Math.min(requested, 3600) : 60;
+
+    const { signedUrl, expiresIn: actualExpires } = await filesService.getSignedUrl(fileInfo.file_path, expiresIn);
+
+    res.json({ success: true, data: { url: signedUrl, expiresIn: actualExpires } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getContentById, getContentByType, downloadFile, viewFile, getSignedUrl };

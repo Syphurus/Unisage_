@@ -223,6 +223,35 @@ async function getFileByContentId(contentId) {
   return data || null;
 }
 
+/**
+ * Create a signed URL for a stored file so clients can download directly from
+ * Supabase Storage without streaming through the backend.
+ * @param {string} storedFilename - Stored filename (path in bucket)
+ * @param {number} expiresInSeconds - Signed URL expiry in seconds
+ * @returns {Promise<{signedUrl: string, expiresIn: number}>}
+ */
+async function getSignedUrl(storedFilename, expiresInSeconds = 60) {
+  try {
+    const { data, error } = await supabase.storage
+      .from(env.CONTENT_FILE_BUCKET)
+      .createSignedUrl(storedFilename, expiresInSeconds);
+
+    if (error) {
+      logger.error("Failed to create signed URL", {
+        bucket: env.CONTENT_FILE_BUCKET,
+        key: storedFilename,
+        error: error.message,
+      });
+      throw error;
+    }
+
+    return { signedUrl: data?.signedUrl || data?.signed_url || null, expiresIn: expiresInSeconds };
+  } catch (err) {
+    logger.error("getSignedUrl failed", { storedFilename, error: err.message });
+    throw new Error("Failed to create signed URL");
+  }
+}
+
 module.exports = {
   saveFile,
   getFileMetadata,

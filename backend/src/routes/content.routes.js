@@ -33,6 +33,11 @@ router.get(
   contentController.viewFile
 );
 router.get(
+  "/:id/signed-url",
+  validate(validators.contentIdParam),
+  contentController.getSignedUrl
+);
+router.get(
   "/:id/download",
   validate(validators.contentIdParam),
   contentController.downloadFile
