@@ -265,4 +265,5 @@ module.exports = {
   getFileBuffer,
   deleteFile,
   getFileByContentId,
+  getSignedUrl,
 };
