@@ -162,7 +162,7 @@ function humanType(t: ContentTabId): string {
 
 function previewTextFromContent(data: any) {
   const source = String(
-    data?.summary || data?.tldr || data?.html || data?.content || "",
+    data?.summary || data?.tldr || data?.html || data?.content || ""
   );
   return source
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -350,20 +350,15 @@ function FileCard({ content: c }: { content: Content }) {
           )}
         </div>
       </div>
-      <div className="mt-4 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleOpen}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-pill border border-mint-500/30 bg-mint-500/10 px-3 py-1.5 text-[12px] font-semibold text-mint-400 hover:bg-mint-500/15 transition-colors"
-        >
-          <ExternalLink className="h-3.5 w-3.5" /> Open
-        </button>
+      <div className="mt-4">
         <button
           type="button"
           onClick={handleDownload}
-          className="inline-flex items-center justify-center gap-1.5 rounded-pill border border-white/[0.08] px-3 py-1.5 text-[12px] font-medium text-chalk-300 hover:bg-white/[0.05] transition-colors"
+          aria-label={`Download ${c.title}`}
+          className="flex-1 inline-flex w-full items-center justify-center gap-2 rounded-pill border border-white/[0.08] px-4 py-2 text-[14px] font-semibold text-chalk-300 hover:bg-white/[0.05] transition-colors"
         >
-          <Download className="h-3.5 w-3.5" />
+          <Download className="h-4 w-4" />
+          Download
         </button>
       </div>
     </div>
@@ -507,19 +502,22 @@ function SyllabusList({ items }: { items: Content[] }) {
                   {c.title}
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  downloadRemoteFile(
-                    `${API_BASE}/api/content/${c.id}/download`,
-                    c.title
-                  )
-                }
-                aria-label="Download syllabus"
-                className="grid h-9 w-9 place-items-center rounded-full text-chalk-300 hover:bg-white/[0.05]"
-              >
-                <Download className="h-4 w-4" />
-              </button>
+              <div className="ml-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadRemoteFile(
+                      `${API_BASE}/api/content/${c.id}/download`,
+                      c.title
+                    )
+                  }
+                  aria-label={`Download ${c.title}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-pill border border-white/[0.08] px-4 py-2 text-[14px] font-semibold text-chalk-300 hover:bg-white/[0.05] transition-colors"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </button>
+              </div>
             </div>
             {data?.html ? (
               <div className="prose-notes mt-4">
@@ -537,13 +535,22 @@ function SyllabusList({ items }: { items: Content[] }) {
                 ))}
               </ul>
             ) : (
-              <Link
-                href={`/content/${c.id}`}
-                className="mt-3 inline-flex items-center text-[13px] font-medium text-mint-400"
-              >
-                Open syllabus
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Link>
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadRemoteFile(
+                      `${API_BASE}/api/content/${c.id}/download`,
+                      c.title
+                    )
+                  }
+                  aria-label={`Download ${c.title}`}
+                  className="inline-flex items-center gap-2 rounded-pill border border-white/[0.08] px-4 py-2 text-[14px] font-semibold text-chalk-300 hover:bg-white/[0.05] transition-colors"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </button>
+              </div>
             )}
           </article>
         );
@@ -595,16 +602,7 @@ function AssignmentList({ items }: { items: Content[] }) {
                 </span>
               )}
             </div>
-            <div className="mt-4 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  openRemoteFile(`${API_BASE}/api/content/${c.id}/view`)
-                }
-                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-pill border border-mint-500/30 bg-mint-500/10 px-3 py-1.5 text-[12px] font-semibold text-mint-400 hover:bg-mint-500/15 transition-colors"
-              >
-                <ExternalLink className="h-3.5 w-3.5" /> Open
-              </button>
+            <div className="mt-4">
               <button
                 type="button"
                 onClick={() =>
@@ -613,10 +611,11 @@ function AssignmentList({ items }: { items: Content[] }) {
                     c.title
                   )
                 }
-                aria-label="Download assignment"
-                className="inline-flex items-center justify-center gap-1.5 rounded-pill border border-white/[0.08] px-3 py-1.5 text-[12px] font-medium text-chalk-300 hover:bg-white/[0.05] transition-colors"
+                aria-label={`Download ${c.title}`}
+                className="flex-1 inline-flex w-full items-center justify-center gap-2 rounded-pill border border-white/[0.08] px-4 py-2 text-[14px] font-semibold text-chalk-300 hover:bg-white/[0.05] transition-colors"
               >
-                <Download className="h-3.5 w-3.5" />
+                <Download className="h-4 w-4" />
+                Download
               </button>
             </div>
           </div>
