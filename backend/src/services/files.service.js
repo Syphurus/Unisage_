@@ -69,7 +69,9 @@ async function saveFile(fileBuffer, originalFilename, mimeType, contentId) {
 
     if (error) {
       // Clean up storage object if DB insert fails
-      await supabase.storage.from(env.CONTENT_FILE_BUCKET).remove([storedFilename]);
+      await supabase.storage
+        .from(env.CONTENT_FILE_BUCKET)
+        .remove([storedFilename]);
       throw error;
     }
 
@@ -185,7 +187,9 @@ async function deleteFile(fileId) {
       throw new Error("Invalid file path");
     }
 
-    await supabase.storage.from(env.CONTENT_FILE_BUCKET).remove([metadata.file_path]);
+    await supabase.storage
+      .from(env.CONTENT_FILE_BUCKET)
+      .remove([metadata.file_path]);
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -245,7 +249,10 @@ async function getSignedUrl(storedFilename, expiresInSeconds = 60) {
       throw error;
     }
 
-    return { signedUrl: data?.signedUrl || data?.signed_url || null, expiresIn: expiresInSeconds };
+    return {
+      signedUrl: data?.signedUrl || data?.signed_url || null,
+      expiresIn: expiresInSeconds,
+    };
   } catch (err) {
     logger.error("getSignedUrl failed", { storedFilename, error: err.message });
     throw new Error("Failed to create signed URL");

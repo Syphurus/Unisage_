@@ -96,7 +96,10 @@ async function downloadFile(req, res, next) {
       "Content-Disposition",
       contentDisposition("attachment", fileInfo.original_filename)
     );
-    res.setHeader("Content-Type", fileInfo.mime_type || "application/octet-stream");
+    res.setHeader(
+      "Content-Type",
+      fileInfo.mime_type || "application/octet-stream"
+    );
     res.setHeader("Content-Length", fileInfo.file_size);
 
     logger.info("File downloaded", {
@@ -166,19 +169,37 @@ async function getSignedUrl(req, res, next) {
 
     const fileInfo = await filesService.getFileByContentId(id);
     if (!fileInfo) {
-      return res.status(404).json({ success: false, error: { message: "No file associated with this content" } });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          error: { message: "No file associated with this content" },
+        });
     }
 
     // Allow client to request a custom expiry via query (in seconds), capped to 1 hour
     const requested = parseInt(req.query.expires || "", 10);
-    const expiresIn = Number.isFinite(requested) && requested > 0 ? Math.min(requested, 3600) : 60;
+    const expiresIn =
+      Number.isFinite(requested) && requested > 0
+        ? Math.min(requested, 3600)
+        : 60;
 
-    const { signedUrl, expiresIn: actualExpires } = await filesService.getSignedUrl(fileInfo.file_path, expiresIn);
+    const { signedUrl, expiresIn: actualExpires } =
+      await filesService.getSignedUrl(fileInfo.file_path, expiresIn);
 
-    res.json({ success: true, data: { url: signedUrl, expiresIn: actualExpires } });
+    res.json({
+      success: true,
+      data: { url: signedUrl, expiresIn: actualExpires },
+    });
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { getContentById, getContentByType, downloadFile, viewFile, getSignedUrl };
+module.exports = {
+  getContentById,
+  getContentByType,
+  downloadFile,
+  viewFile,
+  getSignedUrl,
+};
