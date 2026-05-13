@@ -55,7 +55,7 @@ async function getSubjects(req, res, next) {
     let query = supabase
       .from("subjects")
       .select(
-        "id, name, code, year, semester, credits, description, created_at",
+        "id, name, code, year, semester, credits, description, predictor_visible, created_at",
         { count: "exact" }
       )
       .eq("is_active", true)
@@ -92,6 +92,7 @@ async function getSubjects(req, res, next) {
         semester: s.semester,
         credits: s.credits,
         description: s.description,
+        predictorVisible: s.predictor_visible,
         createdAt: s.created_at,
       })),
       pagination: {
@@ -127,7 +128,7 @@ async function getSubjectById(req, res, next) {
       .from("subjects")
       .select(
         `
-        id, name, code, year, semester, credits, description, created_at,
+        id, name, code, year, semester, credits, description, predictor_visible, created_at,
         units(id, unit_number, title, description, order_index)
       `
       )
@@ -158,6 +159,7 @@ async function getSubjectById(req, res, next) {
       semester: data.semester,
       credits: data.credits,
       description: data.description,
+      predictorVisible: data.predictor_visible,
       units,
       createdAt: data.created_at,
     };
@@ -180,7 +182,7 @@ async function getSubjectUnits(req, res, next) {
     // Verify subject exists and is active
     const { data: subject, error: subErr } = await supabase
       .from("subjects")
-      .select("id, name, code, year, semester")
+      .select("id, name, code, year, semester, predictor_visible")
       .eq("id", id)
       .eq("is_active", true)
       .single();
@@ -227,7 +229,7 @@ async function getSubjectUnitsContent(req, res, next) {
 
     const { data: subject, error: subErr } = await supabase
       .from("subjects")
-      .select("id, name, code, year, semester")
+      .select("id, name, code, year, semester, predictor_visible")
       .eq("id", id)
       .eq("is_active", true)
       .single();
@@ -276,6 +278,12 @@ async function getSubjectContent(req, res, next) {
     // Strip premium types from grouped content when unentitled.
     const filtered = {
       ...result,
+      subject: result?.subject
+        ? {
+            ...result.subject,
+            predictorVisible: result.subject.predictor_visible,
+          }
+        : result?.subject,
       content: stripPremiumGrouped(result?.content, req.entitlements),
     };
 

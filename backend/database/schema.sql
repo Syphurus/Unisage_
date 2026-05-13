@@ -52,6 +52,7 @@ CREATE TABLE subjects (
   credits INTEGER,
   description TEXT,
   is_active BOOLEAN DEFAULT true,
+  predictor_visible BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(branch_id, code)

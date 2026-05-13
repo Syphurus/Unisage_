@@ -13,6 +13,7 @@ export interface Subject {
   semester: number;
   credits: number | null;
   description: string | null;
+  predictorVisible?: boolean;
   createdAt: string;
 }
 
@@ -33,6 +34,20 @@ export interface Unit {
 
 const fetcher = <T>(url: string) => apiClient<T>(url).then((r) => r);
 
+function normalizeSubject(raw: any): Subject {
+  return {
+    id: raw.id,
+    name: raw.name,
+    code: raw.code,
+    year: raw.year,
+    semester: raw.semester,
+    credits: raw.credits,
+    description: raw.description,
+    predictorVisible: raw.predictorVisible ?? raw.predictor_visible,
+    createdAt: raw.createdAt ?? raw.created_at,
+  };
+}
+
 /* ─── Hooks ─────────────────────────────────────────── */
 
 export function useSubjects(year?: number, semester?: number, page = 1) {
@@ -50,8 +65,12 @@ export function useSubjects(year?: number, semester?: number, page = 1) {
     { revalidateOnFocus: false }
   );
 
+  const subjects = Array.isArray(data?.data)
+    ? data.data.map((subject) => normalizeSubject(subject))
+    : [];
+
   return {
-    subjects: data?.data ?? [],
+    subjects,
     pagination: data?.pagination,
     isLoading,
     isError: error,
@@ -66,8 +85,10 @@ export function useSubject(id: string) {
     revalidateOnFocus: false,
   });
 
+  const subject = data?.data ? normalizeSubject(data.data) : null;
+
   return {
-    subject: data?.data ?? null,
+    subject,
     isLoading,
     isError: error,
     mutate,

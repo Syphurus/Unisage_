@@ -375,8 +375,16 @@ async function deleteTeamMember(req, res, next) {
  */
 async function createSubject(req, res, next) {
   try {
-    const { branchId, name, code, year, semester, credits, description } =
-      req.body;
+    const {
+      branchId,
+      name,
+      code,
+      year,
+      semester,
+      credits,
+      description,
+      predictorVisible,
+    } = req.body;
 
     let resolvedBranchId = branchId || req.user?.branchId || null;
 
@@ -406,6 +414,7 @@ async function createSubject(req, res, next) {
         semester,
         credits: credits || null,
         description: description || null,
+        predictor_visible: predictorVisible ?? true,
       })
       .select()
       .single();
@@ -461,6 +470,8 @@ async function updateSubject(req, res, next) {
     if (req.body.description !== undefined)
       updates.description = req.body.description;
     if (req.body.isActive !== undefined) updates.is_active = req.body.isActive;
+    if (req.body.predictorVisible !== undefined)
+      updates.predictor_visible = req.body.predictorVisible;
     updates.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase

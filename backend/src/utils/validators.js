@@ -363,6 +363,7 @@ const createSubject = {
     semester: Joi.number().integer().min(1).max(8).required(),
     credits: Joi.number().integer().min(0).max(10).allow(null),
     description: Joi.string().max(1000).allow("", null),
+    predictorVisible: Joi.boolean().default(true),
   }),
 };
 
@@ -376,6 +377,7 @@ const updateSubject = {
     credits: Joi.number().integer().min(0).max(10).allow(null),
     description: Joi.string().max(1000).allow("", null),
     isActive: Joi.boolean(),
+    predictorVisible: Joi.boolean(),
   }).min(1),
 };
 

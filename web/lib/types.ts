@@ -30,6 +30,7 @@ export interface Subject {
   semester: number;
   credits: number;
   description?: string;
+  predictorVisible?: boolean;
   createdAt?: string;
   units?: Unit[];
 }
