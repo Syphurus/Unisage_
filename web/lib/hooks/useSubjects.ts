@@ -4,6 +4,21 @@ import useSWR from "swr";
 import { subjectsAPI } from "@/lib/api";
 import type { Subject, Unit } from "@/lib/types";
 
+function normalizeSubject(raw: any): Subject {
+  return {
+    id: raw.id,
+    name: raw.name,
+    code: raw.code,
+    year: raw.year,
+    semester: raw.semester,
+    credits: raw.credits,
+    description: raw.description,
+    predictorVisible: raw.predictorVisible ?? raw.predictor_visible,
+    createdAt: raw.createdAt ?? raw.created_at,
+    units: raw.units,
+  };
+}
+
 export function useSubjects(filters?: {
   branchId?: string;
   year?: number;
@@ -21,8 +36,10 @@ export function useSubjects(filters?: {
     return result;
   });
 
+  const subjects = Array.isArray(data) ? data.map((subject) => normalizeSubject(subject)) : [];
+
   return {
-    subjects: (Array.isArray(data) ? data : []) as Subject[],
+    subjects,
     isLoading,
     error,
     mutate,
@@ -41,17 +58,7 @@ export function useSubject(id: string) {
   // Backend returns subject fields flat with units as a nested array
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = data as any;
-  const subject: Subject | undefined = raw
-    ? {
-        id: raw.id,
-        name: raw.name,
-        code: raw.code,
-        year: raw.year,
-        semester: raw.semester,
-        credits: raw.credits,
-        description: raw.description,
-      }
-    : undefined;
+  const subject: Subject | undefined = raw ? normalizeSubject(raw) : undefined;
   const units: Unit[] = raw?.units || [];
 
   return {

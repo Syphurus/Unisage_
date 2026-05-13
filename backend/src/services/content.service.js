@@ -141,7 +141,7 @@ async function getSubjectContent(subjectId, options = {}) {
 
   const { data: subject, error: subjectErr } = await supabase
     .from("subjects")
-    .select("id, name, code, year, semester")
+    .select("id, name, code, year, semester, predictor_visible")
     .eq("id", subjectId)
     .single();
 

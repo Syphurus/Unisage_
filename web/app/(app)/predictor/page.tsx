@@ -11,7 +11,7 @@ import { MobileTopBar, PageHeader } from "@/components/unisage/AppShell";
 import { PageContainer, Section } from "@/components/unisage/PageContainer";
 import { Pill, SectionHeader, StatTile } from "@/components/unisage/primitives";
 import { SkeletonCard } from "@/components/unisage/Skeleton";
-import { Search, Sparkles, AlertCircle } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { PaywallGate } from "@/components/billing/PaywallGate";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { examSubjectsForStudent } from "@/lib/semester-exams";
@@ -73,6 +73,10 @@ function PredictorPageInner() {
     async (): Promise<Aggregated[]> => {
       const results = await Promise.all(
         subjects.map(async (s) => {
+          if (s.predictorVisible === false) {
+            return { subject: s, papers: [] };
+          }
+
           const res: any = await subjectsAPI.getContent(s.id).catch(() => null);
           const d = res?.data ?? res ?? {};
           const bucket: Content[] = Array.isArray(d?.content?.paper_predictor)
@@ -95,8 +99,9 @@ function PredictorPageInner() {
   );
 
   const aggregated: Aggregated[] = data || [];
-  const totalPapers = aggregated.reduce((sum, a) => sum + a.papers.length, 0);
-  const subjectsWithPapers = aggregated.filter((a) => a.papers.length > 0);
+  const visibleAggregated = aggregated.filter((a) => a.subject.predictorVisible !== false);
+  const totalPapers = visibleAggregated.reduce((sum, a) => sum + a.papers.length, 0);
+  const subjectsWithPapers = visibleAggregated.filter((a) => a.papers.length > 0);
 
   const visible = useMemo(() => {
     let arr = aggregated;
@@ -118,7 +123,10 @@ function PredictorPageInner() {
     return arr;
   }, [aggregated, activeId, search]);
 
-  const visiblePapers = visible.reduce((sum, a) => sum + a.papers.length, 0);
+  const visiblePapers = visible.reduce(
+    (sum, a) => sum + (a.subject.predictorVisible === false ? 0 : a.papers.length),
+    0,
+  );
 
   return (
     <div className="min-h-screen">
@@ -289,6 +297,8 @@ function FilterPill({
 // ---------------------------------------------------------------------------
 
 function SubjectGroup({ group }: { group: Aggregated }) {
+  const showPredictor = group.subject.predictorVisible !== false;
+
   return (
     <section>
       <div className="mb-4 flex items-end justify-between gap-3">
@@ -307,32 +317,13 @@ function SubjectGroup({ group }: { group: Aggregated }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {(() => {
-          const code = String(group.subject.code || "").toLowerCase();
-          const name = String(group.subject.name || "").toLowerCase();
-            const patterns = [
-              "oops",
-              "oop",
-              "object",
-              "object oriented",
-              "object-oriented",
-              "dsa",
-              "data structures",
-              "data-structures",
-              "data structure",
-              "algorithms",
-              "data structures & algorithms",
-            ];
-            const matches = patterns.some((p) => code.includes(p) || name.includes(p));
-            if (matches) {
-            return group.papers.map((p, i) => (
-              <PredictorCard key={p.id} paper={p} index={i} />
-            ));
-          }
-          return (
-            <ComingSoonCard key={group.subject.id} subject={group.subject} />
-          );
-        })()}
+        {showPredictor && group.papers.length > 0 ? (
+          group.papers.map((p, i) => (
+            <PredictorCard key={p.id} paper={p} index={i} />
+          ))
+        ) : (
+          <ComingSoonCard key={group.subject.id} subject={group.subject} />
+        )}
       </div>
     </section>
   );

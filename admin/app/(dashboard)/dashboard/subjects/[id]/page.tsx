@@ -9,6 +9,7 @@ import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { PageLoader } from "@/components/shared/LoadingSpinner";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -60,6 +61,8 @@ export default function SubjectDetailPage() {
   const [subjectContent, setSubjectContent] =
     useState<SubjectContentResponse | null>(null);
   const [contentLoading, setContentLoading] = useState(true);
+  const [predictorVisible, setPredictorVisible] = useState(true);
+  const [savingPredictorVisible, setSavingPredictorVisible] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -71,6 +74,7 @@ export default function SubjectDetailPage() {
         if (!mounted) return;
 
         setSubjectContent(batched);
+        setPredictorVisible(subject?.predictorVisible !== false);
       } catch (e) {
         if (mounted) setSubjectContent(null);
       }
@@ -80,7 +84,7 @@ export default function SubjectDetailPage() {
     return () => {
       mounted = false;
     };
-  }, [id]);
+  }, [id, subject?.predictorVisible]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -111,6 +115,33 @@ export default function SubjectDetailPage() {
     } finally {
       setDeleting(false);
       setDeleteOpen(false);
+    }
+  };
+
+  const handlePredictorToggle = async (checked: boolean) => {
+    setPredictorVisible(checked);
+    setSavingPredictorVisible(true);
+
+    try {
+      const res = await api.put(`/admin/subjects/${id}`, {
+        predictorVisible: checked,
+      });
+
+      if (!res.success) {
+        throw new Error(
+          res.error?.message || "Failed to update predictor visibility"
+        );
+      }
+
+      mutate();
+      toast.success(
+        checked ? "Paper Predictor enabled" : "Marked as Coming Soon"
+      );
+    } catch {
+      setPredictorVisible(!checked);
+      toast.error("Failed to update predictor visibility");
+    } finally {
+      setSavingPredictorVisible(false);
     }
   };
 
@@ -180,6 +211,31 @@ export default function SubjectDetailPage() {
                 {subject.description}
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  Paper Predictor visibility
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Toggle whether this subject shows predictor cards or the Coming Soon card in the student app.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-700">
+                  {predictorVisible ? "Shown" : "Coming Soon"}
+                </span>
+                <Switch
+                  checked={predictorVisible}
+                  onCheckedChange={handlePredictorToggle}
+                  disabled={savingPredictorVisible}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
