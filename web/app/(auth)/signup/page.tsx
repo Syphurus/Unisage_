@@ -220,10 +220,10 @@ export default function SignupPage() {
                 </div>
               </div>
               <Field
-                label="Enrollment number"
+                label="Sap Id"
                 value={enrollment}
                 onChange={setEnrollment}
-                placeholder="e.g. 21CS3001"
+                placeholder="e.g. 5900XXXXX"
               />
 
               <p className="pt-2 text-center text-[13px] text-chalk-400">
