@@ -122,13 +122,10 @@ async function listUsersByRole(role, req, res, next) {
     const offset = (page - 1) * limit;
     const search = String(req.query.search || "").trim();
 
-    const query = supabase
-      .from("users")
-      .select(
-        "id, email, full_name, role, permissions, year, semester, enrollment_number, is_active, created_at, last_active",
-        { count: "exact" }
-      )
-      .eq("role", role);
+    const baseSelect =
+      "id, email, full_name, role, permissions, year, semester, enrollment_number, is_active, created_at, last_active";
+
+    const query = supabase.from("users").select(baseSelect, { count: "exact" }).eq("role", role);
 
     if (search) {
       // Tokenize search so multi-word queries match any token across fields.
@@ -139,19 +136,31 @@ async function listUsersByRole(role, req, res, next) {
         const orClauses = tokens
           .map(
             (t) =>
-              `full_name.ilike.%${t}%` +
-              `,email.ilike.%${t}%` +
-              `,enrollment_number.ilike.%${t}%`
+              `full_name.ilike.%${t}%` + `,email.ilike.%${t}%` + `,enrollment_number.ilike.%${t}%`
           )
           .join(",");
 
         if (orClauses) query.or(orClauses);
+        // If search is present, run an explicit count query so pagination reflects
+        // the total number of matching rows (Supabase may not always return
+        // accurate counts for complex filters with range queries).
+        let explicitCount = null;
+        if (orClauses) {
+          const countQuery = supabase
+            .from("users")
+            .select("id", { count: "exact", head: true })
+            .eq("role", role)
+            .or(orClauses);
+          const { count: counted, error: countError } = await countQuery;
+          if (!countError) explicitCount = counted;
+        }
       }
     }
 
     query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
 
     const { data, error, count } = await query;
+    const finalCount = explicitCount !== null ? explicitCount : count;
 
     if (error) throw new Error("Failed to fetch users");
 
@@ -161,8 +170,8 @@ async function listUsersByRole(role, req, res, next) {
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        total: finalCount || 0,
+        totalPages: Math.ceil((finalCount || 0) / limit),
       },
     });
   } catch (err) {
