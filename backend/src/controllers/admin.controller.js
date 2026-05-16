@@ -168,7 +168,9 @@ async function listUsersByRole(role, req, res, next) {
     query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
 
     const { data, error, count } = await query;
-    const finalCount = explicitCount !== null ? explicitCount : count;
+    const finalCount = (typeof explicitCount !== "undefined" && explicitCount !== null)
+      ? explicitCount
+      : count;
 
     if (error) {
       logger.error("Admin listUsersByRole DB error", {
