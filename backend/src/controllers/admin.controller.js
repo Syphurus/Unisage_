@@ -126,6 +126,7 @@ async function listUsersByRole(role, req, res, next) {
       "id, email, full_name, role, permissions, year, semester, enrollment_number, is_active, created_at, last_active";
 
     const query = supabase.from("users").select(baseSelect, { count: "exact" }).eq("role", role);
+    let explicitCount = null;
 
     if (search) {
       // Tokenize search so multi-word queries match any token across fields.
@@ -144,7 +145,6 @@ async function listUsersByRole(role, req, res, next) {
         // If search is present, run an explicit count query so pagination reflects
         // the total number of matching rows (Supabase may not always return
         // accurate counts for complex filters with range queries).
-        let explicitCount = null;
         if (orClauses) {
           const countQuery = supabase
             .from("users")
@@ -152,7 +152,15 @@ async function listUsersByRole(role, req, res, next) {
             .eq("role", role)
             .or(orClauses);
           const { count: counted, error: countError } = await countQuery;
-          if (!countError) explicitCount = counted;
+          if (countError) {
+            logger.error("Admin listUsersByRole count error", {
+              error: countError,
+              admin: req.user?.id,
+              search: safeSearch,
+            });
+          } else {
+            explicitCount = counted;
+          }
         }
       }
     }
@@ -162,7 +170,14 @@ async function listUsersByRole(role, req, res, next) {
     const { data, error, count } = await query;
     const finalCount = explicitCount !== null ? explicitCount : count;
 
-    if (error) throw new Error("Failed to fetch users");
+    if (error) {
+      logger.error("Admin listUsersByRole DB error", {
+        error,
+        admin: req.user?.id,
+        search,
+      });
+      throw new Error("Failed to fetch users");
+    }
 
     res.json({
       success: true,
