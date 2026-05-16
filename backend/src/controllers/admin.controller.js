@@ -120,6 +120,7 @@ async function listUsersByRole(role, req, res, next) {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
     const offset = (page - 1) * limit;
+    const search = String(req.query.search || "").trim();
 
     const query = supabase
       .from("users")
@@ -127,9 +128,28 @@ async function listUsersByRole(role, req, res, next) {
         "id, email, full_name, role, permissions, year, semester, enrollment_number, is_active, created_at, last_active",
         { count: "exact" }
       )
-      .eq("role", role)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      .eq("role", role);
+
+    if (search) {
+      // Tokenize search so multi-word queries match any token across fields.
+      // Remove characters that would interfere with PostgREST filter syntax.
+      const safeSearch = search.replace(/[%_,()]/g, " ").trim();
+      if (safeSearch) {
+        const tokens = safeSearch.split(/\s+/).filter(Boolean).slice(0, 5); // limit tokens
+        const orClauses = tokens
+          .map(
+            (t) =>
+              `full_name.ilike.%${t}%` +
+              `,email.ilike.%${t}%` +
+              `,enrollment_number.ilike.%${t}%`
+          )
+          .join(",");
+
+        if (orClauses) query.or(orClauses);
+      }
+    }
+
+    query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
 
     const { data, error, count } = await query;
 
@@ -640,7 +660,10 @@ async function createContent(req, res, next) {
     let parsedContentData = contentData;
     if (parsedContentData !== undefined) {
       try {
-        parsedContentData = normalizeIncomingContentData(parsedContentData, type);
+        parsedContentData = normalizeIncomingContentData(
+          parsedContentData,
+          type
+        );
       } catch {
         throw new ValidationError("Invalid content data JSON");
       }
@@ -794,7 +817,10 @@ async function updateContent(req, res, next) {
     if (req.body.title !== undefined) updates.title = req.body.title;
     if (req.body.data !== undefined) {
       try {
-        updates.data = normalizeIncomingContentData(req.body.data, existing.type);
+        updates.data = normalizeIncomingContentData(
+          req.body.data,
+          existing.type
+        );
       } catch {
         throw new ValidationError("Invalid content data JSON");
       }
