@@ -30,7 +30,9 @@ const enrollmentNumberField = Joi.string()
   .trim()
   .max(30)
   .pattern(/^[A-Za-z0-9 /-]+$/)
-  .message("Enrollment number can only contain letters, numbers, spaces, /, or -")
+  .message(
+    "Enrollment number can only contain letters, numbers, spaces, /, or -"
+  )
   .allow("", null);
 
 function semesterRule(yearKey = "year", semesterKey = "semester") {
@@ -91,7 +93,9 @@ const signup = {
     enrollmentNumber: enrollmentNumberField,
   }).custom((value, helpers) => {
     if (value.semester >= 4 && !value.specialization) {
-      return helpers.message("Specialization is required for semester 4 and above");
+      return helpers.message(
+        "Specialization is required for semester 4 and above"
+      );
     }
 
     return value;
@@ -470,6 +474,7 @@ const adminUserQuery = {
     role: Joi.string().valid("student", "admin"),
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(20),
+    search: Joi.string().trim().max(120).allow(""),
   }),
 };
 

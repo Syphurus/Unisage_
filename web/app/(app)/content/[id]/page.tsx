@@ -21,7 +21,10 @@ import {
   SectionHeader,
 } from "@/components/unisage/primitives";
 import { ReadingView } from "@/components/unisage/ReadingView";
-import { Filter } from "lucide-react";
+import { Download, Filter } from "lucide-react";
+import { getApiRoot } from "@/lib/api-base";
+
+const API_BASE = getApiRoot();
 
 const TYPE_LABELS: Record<string, string> = {
   long_notes: "Long notes",
@@ -60,6 +63,46 @@ function parseFlexibleJson(raw: string) {
   } catch {
     return JSON.parse(normalized.replace(/,\s*([}\]])/g, "$1"));
   }
+}
+
+function authHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function fetchRemoteFile(url: string) {
+  const response = await fetch(url, {
+    headers: authHeaders(),
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status})`);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+
+  return { blob, filename: match?.[1] || "download" };
+}
+
+async function downloadRemoteFile(url: string, fallbackName: string) {
+  const { blob, filename } = await fetchRemoteFile(url);
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename || fallbackName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+}
+
+function hasAttachedFile(data: any) {
+  return Boolean(
+    data?.fileId || data?.filename || data?.original_filename || data?.mimeType
+  );
 }
 
 function expandFlashcards(contentItems: Content[]): Content[] {
@@ -495,6 +538,38 @@ function PredictorPaperView({ content }: { content: Content }) {
     }
     return d || {};
   })();
+
+  if (hasAttachedFile(data)) {
+    const downloadUrl = `${API_BASE}/api/content/${content.id}/download`;
+    const filename =
+      data?.filename || data?.original_filename || content.title || "download";
+
+    return (
+      <ProtectedPredictorShell>
+        <div className="mt-2 rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+                PREDICTOR PDF
+              </p>
+              <h3 className="mt-2 text-[18px] font-semibold text-[rgb(var(--fg))]">
+                {content.title}
+              </h3>
+              <p className="mt-1 text-[13px] text-chalk-400">{filename}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => downloadRemoteFile(downloadUrl, filename)}
+              className="inline-flex items-center gap-2 rounded-pill border border-white/[0.08] px-4 py-2 text-[14px] font-semibold text-chalk-300 hover:bg-white/[0.05] transition-colors"
+            >
+              <Download className="h-4 w-4" />
+              Download
+            </button>
+          </div>
+        </div>
+      </ProtectedPredictorShell>
+    );
+  }
 
   // Rich predictions[] shape — the canonical worksheet/PYQ-backed format.
   // Detected by the presence of a non-empty predictions array.

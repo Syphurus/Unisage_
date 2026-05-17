@@ -178,8 +178,12 @@ export default function UsersPage() {
     updateSection(section, { loading: true });
     try {
       const state = sections[section];
+      const search = state.search.trim();
+      const searchParam = search
+        ? `&search=${encodeURIComponent(search)}`
+        : "";
       const res = await api.get<ManagedUser[]>(
-        `${SECTION_META[section].endpoint}?page=${state.page}&limit=20`
+        `${SECTION_META[section].endpoint}?page=${state.page}&limit=20${searchParam}`
       );
 
       if (res.success && res.data) {
@@ -199,13 +203,13 @@ export default function UsersPage() {
     if (allowedSections.includes("users")) {
       loadSection("users");
     }
-  }, [sections.users.page, allowedSections.join(",")]);
+  }, [sections.users.page, sections.users.search, allowedSections.join(",")]);
 
   useEffect(() => {
     if (allowedSections.includes("team")) {
       loadSection("team");
     }
-  }, [sections.team.page, allowedSections.join(",")]);
+  }, [sections.team.page, sections.team.search, allowedSections.join(",")]);
 
   useEffect(() => {
     setForm(getDefaultForm(activeSection));
@@ -213,16 +217,6 @@ export default function UsersPage() {
   }, [activeSection]);
 
   const currentSection = sections[activeSection];
-  const filteredItems = useMemo(() => {
-    const search = currentSection.search.trim().toLowerCase();
-    if (!search) return currentSection.items;
-    return currentSection.items.filter(
-      (item) =>
-        item.fullName.toLowerCase().includes(search) ||
-        item.email.toLowerCase().includes(search)
-    );
-  }, [currentSection.items, currentSection.search]);
-
   const columns: Column<ManagedUser>[] = useMemo(() => {
     const baseColumns: Column<ManagedUser>[] = [
       {
@@ -669,7 +663,10 @@ export default function UsersPage() {
                 className="pl-9"
                 value={currentSection.search}
                 onChange={(e) =>
-                  updateSection(activeSection, { search: e.target.value })
+                  updateSection(activeSection, {
+                    search: e.target.value,
+                    page: 1,
+                  })
                 }
               />
             </div>
@@ -677,7 +674,7 @@ export default function UsersPage() {
           <CardContent>
             <DataTable
               columns={columns}
-              data={filteredItems}
+              data={currentSection.items}
               loading={currentSection.loading}
               emptyTitle={`No ${currentMeta.title.toLowerCase()} found`}
               emptyDescription={`Records will appear here once they are created.`}

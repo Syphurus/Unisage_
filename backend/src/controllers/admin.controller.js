@@ -788,8 +788,8 @@ async function createContent(req, res, next) {
       throw new ValidationError(error.message || "Failed to create content");
     }
 
-    // Handle file upload for file-backed content types (PYQs, syllabus, assignments)
-    if (["pyqs", "syllabus", "assignments"].includes(type) && req.file) {
+    // Handle file upload for file-backed content types (PYQs, syllabus, assignments, predictor PDFs)
+    if (["pyqs", "syllabus", "assignments", "paper_predictor"].includes(type) && req.file) {
       try {
         const fileInfo = await saveFile(
           req.file.buffer,
@@ -873,7 +873,7 @@ async function updateContent(req, res, next) {
     try {
       if (
         req.file &&
-        ["pyqs", "syllabus", "assignments"].includes(existing.type)
+        ["pyqs", "syllabus", "assignments", "paper_predictor"].includes(existing.type)
       ) {
         // remove old file if any
         const old = await getFileByContentId(id);

@@ -80,7 +80,7 @@ export default function SignupPage() {
 
   const yearFromSemester = (sem: number) => Math.ceil(sem / 2);
   const passwordMeetsRules = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,128}$/.test(
-    password,
+    password
   );
 
   const validateStep1 = () => {
@@ -152,8 +152,7 @@ export default function SignupPage() {
         enrollment.trim().length > 0
       : step === 2
         ? !!collegeCode
-        : !!branchCode &&
-          semester > 0;
+        : !!branchCode && semester > 0;
 
   const onContinue = async () => {
     if (!canContinue) return;
@@ -221,7 +220,7 @@ export default function SignupPage() {
               key={n}
               className={cn(
                 "h-[2px] flex-1 rounded-full transition-colors",
-                n <= step ? "bg-mint-400" : "bg-white/10",
+                n <= step ? "bg-mint-400" : "bg-white/10"
               )}
             />
           ))}
@@ -287,7 +286,7 @@ export default function SignupPage() {
                       "w-full rounded-[12px] border bg-[rgb(var(--bg-elev))] px-4 py-3.5 pr-11 text-[15px] text-[rgb(var(--fg))] placeholder:text-chalk-500 focus:outline-none transition-colors",
                       errors.password
                         ? "border-red-500/50 focus:border-red-500"
-                        : "border-white/[0.08] focus:border-mint-500",
+                        : "border-white/[0.08] focus:border-mint-500"
                     )}
                   />
                   <button
@@ -304,7 +303,9 @@ export default function SignupPage() {
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="mt-2 text-[12px] text-red-400">{errors.password}</p>
+                  <p className="mt-2 text-[12px] text-red-400">
+                    {errors.password}
+                  </p>
                 )}
                 <PasswordRequirements password={password} />
               </div>
@@ -356,15 +357,13 @@ export default function SignupPage() {
                         "flex w-full items-center justify-between rounded-[12px] border px-4 py-3.5 text-left transition-colors",
                         active
                           ? "border-mint-500 bg-mint-500/10"
-                          : "border-white/[0.08] bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--bg-subtle))]",
+                          : "border-white/[0.08] bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--bg-subtle))]"
                       )}
                     >
                       <span className="text-[14px] font-medium text-[rgb(var(--fg))]">
                         {c.name}
                       </span>
-                      {active && (
-                        <Check className="h-4 w-4 text-mint-400" />
-                      )}
+                      {active && <Check className="h-4 w-4 text-mint-400" />}
                     </button>
                   );
                 })
@@ -384,7 +383,7 @@ export default function SignupPage() {
             </p>
 
             <div className="mt-7">
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+              <p className="mb-3 text-[20px] font-semibold uppercase tracking-cap text-chalk-500">
                 Branch
               </p>
               {errors.branch && (
@@ -392,7 +391,7 @@ export default function SignupPage() {
               )}
               <div className="flex flex-wrap gap-2">
                 {branches.length === 0 ? (
-                  <p className="text-[13px] text-chalk-400">
+                  <p className="text-[20px] text-chalk-400">
                     Loading branches...
                   </p>
                 ) : (
@@ -410,10 +409,10 @@ export default function SignupPage() {
                           });
                         }}
                         className={cn(
-                          "rounded-pill border px-4 py-1.5 text-[12px] font-medium transition-colors",
+                          "rounded-pill border px-4 py-1.5 text-[20px] font-medium transition-colors",
                           active
                             ? "border-mint-500 bg-mint-500 text-ink-950"
-                            : "border-white/[0.1] text-chalk-300 hover:border-white/[0.2]",
+                            : "border-white/[0.1] text-chalk-300 hover:border-white/[0.2]"
                         )}
                       >
                         {b.code}
@@ -421,15 +420,17 @@ export default function SignupPage() {
                     );
                   })
                 )}
-              </div>
+              </div>  
             </div>
 
             <div className="mt-6">
-              <p className="mb-3 text-[10px] font-semibold uppercase tracking-cap text-chalk-500">
+              <p className="mb-3 text-[20px] font-semibold uppercase tracking-cap text-chalk-500">
                 Semester
               </p>
               {errors.semester && (
-                <p className="mb-3 text-[12px] text-red-400">{errors.semester}</p>
+                <p className="mb-3 text-[12px] text-red-400">
+                  {errors.semester}
+                </p>
               )}
               <div className="grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => {
@@ -446,10 +447,10 @@ export default function SignupPage() {
                         });
                       }}
                       className={cn(
-                        "rounded-[12px] border py-2.5 text-[14px] font-semibold transition-colors",
+                        "rounded-[12px] border py-2.5 text-[20px] font-semibold transition-colors",
                         active
                           ? "border-mint-500 bg-mint-500 text-ink-950"
-                          : "border-white/[0.1] text-chalk-300 hover:border-white/[0.2]",
+                          : "border-white/[0.1] text-chalk-300 hover:border-white/[0.2]"
                       )}
                     >
                       Sem {s}
@@ -465,7 +466,9 @@ export default function SignupPage() {
                   Specialization
                 </p>
                 {errors.specialization && (
-                  <p className="mb-3 text-[12px] text-red-400">{errors.specialization}</p>
+                  <p className="mb-3 text-[12px] text-red-400">
+                    {errors.specialization}
+                  </p>
                 )}
                 <div className="space-y-2">
                   {SPECIALIZATIONS.map((item) => {
@@ -485,7 +488,7 @@ export default function SignupPage() {
                           "flex w-full items-center justify-between rounded-[12px] border px-4 py-3 text-left transition-colors",
                           active
                             ? "border-mint-500 bg-mint-500/10"
-                            : "border-white/[0.08] bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--bg-subtle))]",
+                            : "border-white/[0.08] bg-[rgb(var(--bg-elev))] hover:bg-[rgb(var(--bg-subtle))]"
                         )}
                       >
                         <span className="text-[13px] font-medium text-[rgb(var(--fg))]">
@@ -586,7 +589,7 @@ function Field({
           "w-full rounded-[12px] border bg-[rgb(var(--bg-elev))] px-4 py-3.5 text-[15px] text-[rgb(var(--fg))] placeholder:text-chalk-500 focus:outline-none transition-colors",
           error
             ? "border-red-500/50 focus:border-red-500"
-            : "border-white/[0.08] focus:border-mint-500",
+            : "border-white/[0.08] focus:border-mint-500"
         )}
       />
       {error && <p className="mt-2 text-[12px] text-red-400">{error}</p>}
@@ -616,12 +619,20 @@ function PasswordRequirements({ password }: { password: string }) {
       </p>
       {requirements.map((req) => (
         <div key={req.label} className="flex items-center gap-2">
-          <div className={cn("h-4 w-4 rounded-full flex items-center justify-center text-[10px]", 
-            req.met ? "bg-mint-500/30" : "bg-white/[0.05]"
-          )}>
+          <div
+            className={cn(
+              "h-4 w-4 rounded-full flex items-center justify-center text-[10px]",
+              req.met ? "bg-mint-500/30" : "bg-white/[0.05]"
+            )}
+          >
             {req.met && <span className="text-mint-400">✓</span>}
           </div>
-          <span className={cn("text-[12px]", req.met ? "text-chalk-300" : "text-chalk-500")}>
+          <span
+            className={cn(
+              "text-[12px]",
+              req.met ? "text-chalk-300" : "text-chalk-500"
+            )}
+          >
             {req.label}
           </span>
         </div>

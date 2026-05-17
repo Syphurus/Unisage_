@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
+import { FileText, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,8 +33,26 @@ export function JsonContentForm({
   const isEditing = !!initialData?.id;
   const [title, setTitle] = useState(initialData?.title || "");
   const [jsonText, setJsonText] = useState(
-    initialData?.data ? JSON.stringify(initialData.data, null, 2) : ""
+    initialData?.data
+      ? JSON.stringify(
+          (() => {
+            const data = initialData.data as Record<string, unknown>;
+            const {
+              fileId,
+              filename,
+              original_filename,
+              mimeType,
+              fileSize,
+              ...rest
+            } = data || {};
+            return Object.keys(rest).length > 0 ? rest : {};
+          })(),
+          null,
+          2
+        )
+      : ""
   );
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
   const parseJsonInput = (raw: string) => {
@@ -117,23 +136,69 @@ export function JsonContentForm({
   useEffect(() => {
     setTitle(initialData?.title || "");
     setJsonText(
-      initialData?.data ? JSON.stringify(initialData.data, null, 2) : ""
+      initialData?.data
+        ? JSON.stringify(
+            (() => {
+              const data = initialData.data as Record<string, unknown>;
+              const {
+                fileId,
+                filename,
+                original_filename,
+                mimeType,
+                fileSize,
+                ...rest
+              } = data || {};
+              return Object.keys(rest).length > 0 ? rest : {};
+            })(),
+            null,
+            2
+          )
+        : ""
     );
+    setPdfFile(null);
   }, [initialData?.id, initialData?.title, initialData?.data]);
+
+  const existingFileName =
+    (initialData?.data as any)?.filename ||
+    (initialData?.data as any)?.original_filename ||
+    "";
+
+  const handlePdfSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) return;
+
+    if (selectedFile.type !== "application/pdf") {
+      toast.error("Please select a valid PDF file");
+      return;
+    }
+
+    if (selectedFile.size > 50 * 1024 * 1024) {
+      toast.error("PDF size must be less than 50 MB");
+      return;
+    }
+
+    setPdfFile(selectedFile);
+  };
 
   const handleSubmit = async () => {
     if (!title.trim()) {
       toast.error("Title is required");
       return;
     }
-    if (!jsonText.trim()) {
+
+    if (!jsonText.trim() && !pdfFile && type !== "paper_predictor") {
       toast.error("JSON data is required");
+      return;
+    }
+
+    if (type === "paper_predictor" && !jsonText.trim() && !pdfFile) {
+      toast.error("Add JSON data or upload a PDF for Paper Predictor");
       return;
     }
 
     let parsed;
     try {
-      parsed = parseJsonInput(jsonText);
+      parsed = jsonText.trim() ? parseJsonInput(jsonText) : {};
 
       if (type === "exam_tips") {
         parsed = normalizeExamTipsData(parsed);
@@ -179,7 +244,7 @@ export function JsonContentForm({
 
     setLoading(true);
     try {
-      const payload = {
+      const jsonPayload = {
         subjectId,
         unitId,
         type,
@@ -188,7 +253,19 @@ export function JsonContentForm({
         isPublished: true,
       };
 
-      if (!payload.subjectId && !payload.unitId) {
+      const pdfPayload = new FormData();
+
+      if (pdfFile) {
+        if (subjectId) pdfPayload.append("subjectId", subjectId);
+        if (unitId) pdfPayload.append("unitId", unitId);
+        pdfPayload.append("type", type);
+        pdfPayload.append("title", title.trim());
+        pdfPayload.append("data", JSON.stringify(parsed));
+        pdfPayload.append("isPublished", "true");
+        pdfPayload.append("file", pdfFile);
+      }
+
+      if (!pdfFile && !jsonPayload.subjectId && !jsonPayload.unitId) {
         toast.error("A subject is required to save content");
         setLoading(false);
         return;
@@ -199,7 +276,7 @@ export function JsonContentForm({
         : "/admin/content";
       const method = isEditing ? api.put : api.post;
 
-      const res = await method(endpoint, payload);
+      const res = await method(endpoint, pdfFile ? pdfPayload : jsonPayload);
 
       if (!res.success) {
         toast.error(res.error?.message || "Failed to save content");
@@ -249,6 +326,61 @@ export function JsonContentForm({
           placeholder={jsonPlaceholder}
         />
       </div>
+
+      {type === "paper_predictor" && (
+        <div className="space-y-2">
+          <Label>PDF File</Label>
+          <div className="relative">
+            <Input
+              id="predictor-pdf-input"
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={handlePdfSelect}
+              className="hidden"
+            />
+            <label
+              htmlFor="predictor-pdf-input"
+              className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 px-4 py-8 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-900"
+            >
+              <div className="text-center">
+                {pdfFile ? (
+                  <>
+                    <FileText className="mx-auto mb-2 h-8 w-8 text-blue-600" />
+                    <p className="text-sm font-medium">{pdfFile.name}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      PDF selected - click to change
+                    </p>
+                  </>
+                ) : existingFileName ? (
+                  <>
+                    <FileText className="mx-auto mb-2 h-8 w-8 text-blue-600" />
+                    <p className="text-sm font-medium">{existingFileName}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Existing PDF - click to replace
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mx-auto mb-2 h-8 w-8 text-gray-400" />
+                    <p className="text-sm font-medium">Click to upload PDF</p>
+                    <p className="mt-1 text-xs text-gray-500">Max 50 MB</p>
+                  </>
+                )}
+              </div>
+            </label>
+          </div>
+          {(pdfFile || existingFileName) && (
+            <button
+              type="button"
+              onClick={() => setPdfFile(null)}
+              className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-3 w-3" />
+              Clear selected PDF
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex justify-end">
         <Button onClick={handleSubmit} disabled={loading}>

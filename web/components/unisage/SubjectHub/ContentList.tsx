@@ -81,6 +81,12 @@ async function downloadRemoteFile(url: string, fallbackName: string) {
   setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
 
+function hasAttachedFile(data: any) {
+  return Boolean(
+    data?.fileId || data?.filename || data?.original_filename || data?.mimeType
+  );
+}
+
 export function ContentList({
   type,
   items,
@@ -427,28 +433,74 @@ function PredictorList({ items }: { items: Content[] }) {
         </p>
       </HighlightCard>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {items.map((c, i) => (
-          <Link
-            key={c.id}
-            href={`/content/${c.id}`}
-            className="group rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 transition-all hover:border-mint-500/30 hover:bg-[rgb(var(--bg-subtle))]"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <MetaCaption>
-                PAPER · {String(i + 1).padStart(2, "0")}
-              </MetaCaption>
-              <Pill variant="mint">Open</Pill>
-            </div>
-            <h3 className="mt-3 text-[17px] font-semibold leading-snug text-[rgb(var(--fg))]">
-              {c.title}
-            </h3>
-            <div className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
-              <Stat label="Time" value="3h" />
-              <Stat label="Marks" value="100" />
-              <Stat label="Confidence" value="88%" tone="mint" />
-            </div>
-          </Link>
-        ))}
+        {items.map((c, i) => {
+          const data = c.data as any;
+
+          if (hasAttachedFile(data)) {
+            return <PredictorFileCard key={c.id} content={c} index={i} />;
+          }
+
+          return (
+            <Link
+              key={c.id}
+              href={`/content/${c.id}`}
+              className="group rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 transition-all hover:border-mint-500/30 hover:bg-[rgb(var(--bg-subtle))]"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <MetaCaption>
+                  PAPER · {String(i + 1).padStart(2, "0")}
+                </MetaCaption>
+                <Pill variant="mint">Open</Pill>
+              </div>
+              <h3 className="mt-3 text-[17px] font-semibold leading-snug text-[rgb(var(--fg))]">
+                {c.title}
+              </h3>
+              <div className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
+                <Stat label="Time" value="3h" />
+                <Stat label="Marks" value="100" />
+                <Stat label="Confidence" value="88%" tone="mint" />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PredictorFileCard({
+  content,
+  index,
+}: {
+  content: Content;
+  index: number;
+}) {
+  const downloadUrl = `${API_BASE}/api/content/${content.id}/download`;
+
+  return (
+    <div className="group rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-6 transition-all hover:border-mint-500/30 hover:bg-[rgb(var(--bg-subtle))]">
+      <div className="flex items-center justify-between gap-3">
+        <MetaCaption>PAPER · {String(index + 1).padStart(2, "0")}</MetaCaption>
+        <Pill variant="mint">PDF</Pill>
+      </div>
+      <h3 className="mt-3 text-[17px] font-semibold leading-snug text-[rgb(var(--fg))]">
+        {content.title}
+      </h3>
+      <div className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
+        <Stat label="Time" value="3h" />
+        <Stat label="Marks" value="100" />
+        <Stat label="Format" value="PDF" tone="mint" />
+      </div>
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={() => downloadRemoteFile(downloadUrl, content.title)}
+          aria-label={`Download ${content.title}`}
+          className="flex-1 inline-flex w-full items-center justify-center gap-2 rounded-pill border border-white/[0.08] px-4 py-2 text-[14px] font-semibold text-chalk-300 hover:bg-white/[0.05] transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          Download
+        </button>
       </div>
     </div>
   );
