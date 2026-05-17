@@ -6,9 +6,17 @@
 const NodeCache = require("node-cache");
 const { supabase } = require("../config/database");
 const { NotFoundError } = require("../utils/errors");
+const logger = require("../utils/logger");
 
 // Cache TTL: 5 minutes for content, 10 minutes for subjects
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 60, maxKeys: 500 });
+
+const FILE_BACKED_TYPES = new Set([
+  "paper_predictor",
+  "pyqs",
+  "syllabus",
+  "assignments",
+]);
 
 function emptyContentBuckets() {
   return {
@@ -34,6 +42,52 @@ function pushContentItem(bucket, item) {
     isPublished: item.is_published,
     createdAt: item.created_at,
   });
+}
+
+function mergeFileMetadata(data, fileInfo) {
+  if (!fileInfo) return data;
+
+  const baseData =
+    data && typeof data === "object" && !Array.isArray(data) ? { ...data } : {};
+
+  return {
+    ...baseData,
+    fileId: fileInfo.id,
+    filename: fileInfo.original_filename,
+    original_filename: fileInfo.original_filename,
+    mimeType: fileInfo.mime_type,
+    fileSize: fileInfo.file_size,
+  };
+}
+
+async function getFileMapByContentIds(contentIds) {
+  const uniqueIds = Array.from(new Set(contentIds.filter(Boolean)));
+
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await supabase
+    .from("files")
+    .select("*")
+    .in("content_id", uniqueIds);
+
+  if (error) {
+    logger.warn("Failed to fetch file metadata for content", {
+      error: error.message,
+      contentIds: uniqueIds,
+    });
+    return new Map();
+  }
+
+  return new Map((data || []).map((file) => [file.content_id, file]));
+}
+
+function applyFileMetadataToRow(row, fileMap) {
+  return {
+    ...row,
+    data: mergeFileMetadata(row.data, fileMap.get(row.id)),
+  };
 }
 
 async function ensureSubjectContentUnit(subjectId) {
@@ -114,11 +168,17 @@ async function getUnitContent(unitId) {
     throw new Error("Failed to fetch unit content");
   }
 
+  const fileMap = await getFileMapByContentIds(
+    (data || [])
+      .filter((item) => FILE_BACKED_TYPES.has(item.type))
+      .map((item) => item.id)
+  );
+
   // Group content by type
   const grouped = emptyContentBuckets();
 
   for (const item of data) {
-    pushContentItem(grouped, item);
+    pushContentItem(grouped, applyFileMetadataToRow(item, fileMap));
   }
 
   cache.set(cacheKey, grouped);
@@ -180,13 +240,19 @@ async function getSubjectContent(subjectId, options = {}) {
 
   if (contentErr) throw new Error("Failed to fetch subject content");
 
+  const fileMap = await getFileMapByContentIds(
+    (contents || [])
+      .filter((item) => FILE_BACKED_TYPES.has(item.type))
+      .map((item) => item.id)
+  );
+
   const contentsToGroup = includeUnpublished
     ? contents || []
     : (contents || []).filter((item) => item.is_published);
 
   const grouped = emptyContentBuckets();
   for (const item of contentsToGroup) {
-    pushContentItem(grouped, item);
+    pushContentItem(grouped, applyFileMetadataToRow(item, fileMap));
   }
 
   const result = {
@@ -244,6 +310,12 @@ async function getSubjectUnitsContent(subjectId, options = {}) {
   const { data: contents, error: contentErr } = await contentQuery;
   if (contentErr) throw new Error("Failed to fetch subject content");
 
+  const fileMap = await getFileMapByContentIds(
+    (contents || [])
+      .filter((item) => FILE_BACKED_TYPES.has(item.type))
+      .map((item) => item.id)
+  );
+
   const contentByUnit = {};
   for (const u of units) {
     contentByUnit[u.id] = emptyContentBuckets();
@@ -252,7 +324,7 @@ async function getSubjectUnitsContent(subjectId, options = {}) {
   for (const item of contents || []) {
     const bucket = contentByUnit[item.unit_id];
     if (!bucket || !bucket[item.type]) continue;
-    pushContentItem(bucket, item);
+    pushContentItem(bucket, applyFileMetadataToRow(item, fileMap));
   }
 
   const result = visibleUnits.map((u) => ({
@@ -300,11 +372,13 @@ async function getContentById(contentId) {
     throw new NotFoundError("Content");
   }
 
+  const fileMap = await getFileMapByContentIds([contentId]);
+
   const result = {
     id: data.id,
     type: data.type,
     title: data.title,
-    data: data.data,
+    data: mergeFileMetadata(data.data, fileMap.get(contentId)),
     orderIndex: data.order_index,
     unit: data.units
       ? {
@@ -359,13 +433,19 @@ async function getContentByType(type, page, limit) {
     throw new Error("Failed to fetch content");
   }
 
+  const fileMap = await getFileMapByContentIds(
+    (data || [])
+      .filter((item) => FILE_BACKED_TYPES.has(item.type))
+      .map((item) => item.id)
+  );
+
   return {
     data: data.map((item) => ({
       id: item.id,
       unitId: item.unit_id,
       type: item.type,
       title: item.title,
-      data: item.data,
+      data: mergeFileMetadata(item.data, fileMap.get(item.id)),
       orderIndex: item.order_index,
       createdAt: item.created_at,
     })),

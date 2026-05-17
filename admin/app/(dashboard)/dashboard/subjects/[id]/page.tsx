@@ -222,7 +222,8 @@ export default function SubjectDetailPage() {
                   Paper Predictor visibility
                 </p>
                 <p className="mt-1 text-sm text-gray-500">
-                  Toggle whether this subject shows predictor cards or the Coming Soon card in the student app.
+                  Toggle whether this subject shows predictor cards or the
+                  Coming Soon card in the student app.
                 </p>
               </div>
               <div className="flex items-center gap-3">

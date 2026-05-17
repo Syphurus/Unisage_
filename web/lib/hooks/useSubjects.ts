@@ -36,7 +36,9 @@ export function useSubjects(filters?: {
     return result;
   });
 
-  const subjects = Array.isArray(data) ? data.map((subject) => normalizeSubject(subject)) : [];
+  const subjects = Array.isArray(data)
+    ? data.map((subject) => normalizeSubject(subject))
+    : [];
 
   return {
     subjects,

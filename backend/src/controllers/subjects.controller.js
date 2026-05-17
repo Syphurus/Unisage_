@@ -188,7 +188,8 @@ async function getSubjectUnits(req, res, next) {
       .single();
 
     if (subErr || !subject) throw new NotFoundError("Subject");
-    if (!canAccessSubject(subject, req.user)) throw new NotFoundError("Subject");
+    if (!canAccessSubject(subject, req.user))
+      throw new NotFoundError("Subject");
 
     const { data: units, error } = await supabase
       .from("units")
@@ -235,7 +236,8 @@ async function getSubjectUnitsContent(req, res, next) {
       .single();
 
     if (subErr || !subject) throw new NotFoundError("Subject");
-    if (!canAccessSubject(subject, req.user)) throw new NotFoundError("Subject");
+    if (!canAccessSubject(subject, req.user))
+      throw new NotFoundError("Subject");
 
     const units = await contentService.getSubjectUnitsContent(id, {
       includeUnpublished: false,

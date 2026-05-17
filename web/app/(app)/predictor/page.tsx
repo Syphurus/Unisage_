@@ -46,7 +46,7 @@ function PredictorPageInner() {
       examSubjectsForStudent(
         rawSubjects,
         user?.specialization,
-        user?.branchCode,
+        user?.branchCode
       )
         .map((subject) => ({
           subject,
@@ -55,7 +55,7 @@ function PredictorPageInner() {
         .sort(
           (a, b) =>
             a.exam.sortTime - b.exam.sortTime ||
-            a.subject.name.localeCompare(b.subject.name),
+            a.subject.name.localeCompare(b.subject.name)
         )
         .map((row) => row.subject),
     [rawSubjects, user?.specialization, user?.branchCode]
@@ -99,9 +99,16 @@ function PredictorPageInner() {
   );
 
   const aggregated: Aggregated[] = data || [];
-  const visibleAggregated = aggregated.filter((a) => a.subject.predictorVisible !== false);
-  const totalPapers = visibleAggregated.reduce((sum, a) => sum + a.papers.length, 0);
-  const subjectsWithPapers = visibleAggregated.filter((a) => a.papers.length > 0);
+  const visibleAggregated = aggregated.filter(
+    (a) => a.subject.predictorVisible !== false
+  );
+  const totalPapers = visibleAggregated.reduce(
+    (sum, a) => sum + a.papers.length,
+    0
+  );
+  const subjectsWithPapers = visibleAggregated.filter(
+    (a) => a.papers.length > 0
+  );
 
   const visible = useMemo(() => {
     let arr = aggregated;
@@ -124,8 +131,9 @@ function PredictorPageInner() {
   }, [aggregated, activeId, search]);
 
   const visiblePapers = visible.reduce(
-    (sum, a) => sum + (a.subject.predictorVisible === false ? 0 : a.papers.length),
-    0,
+    (sum, a) =>
+      sum + (a.subject.predictorVisible === false ? 0 : a.papers.length),
+    0
   );
 
   return (

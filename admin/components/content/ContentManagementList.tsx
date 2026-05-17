@@ -73,6 +73,7 @@ export default function ContentManagementList({
         return `Year: ${(content.data as any)?.year || "N/A"}, Subject: ${(content.data as any)?.subject || "N/A"}`;
       case "syllabus":
       case "assignments":
+      case "paper_predictor":
         return `File: ${(content.data as any)?.original_filename || (content as any)?.filename || "Document"}`;
       default:
         return JSON.stringify(content.data).substring(0, 100);
