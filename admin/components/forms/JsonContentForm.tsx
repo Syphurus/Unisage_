@@ -244,7 +244,7 @@ export function JsonContentForm({
 
     setLoading(true);
     try {
-      const payload = pdfFile ? new FormData() : {
+      const jsonPayload = {
         subjectId,
         unitId,
         type,
@@ -253,17 +253,19 @@ export function JsonContentForm({
         isPublished: true,
       };
 
+      const pdfPayload = new FormData();
+
       if (pdfFile) {
-        if (subjectId) payload.append("subjectId", subjectId);
-        if (unitId) payload.append("unitId", unitId);
-        payload.append("type", type);
-        payload.append("title", title.trim());
-        payload.append("data", JSON.stringify(parsed));
-        payload.append("isPublished", "true");
-        payload.append("file", pdfFile);
+        if (subjectId) pdfPayload.append("subjectId", subjectId);
+        if (unitId) pdfPayload.append("unitId", unitId);
+        pdfPayload.append("type", type);
+        pdfPayload.append("title", title.trim());
+        pdfPayload.append("data", JSON.stringify(parsed));
+        pdfPayload.append("isPublished", "true");
+        pdfPayload.append("file", pdfFile);
       }
 
-      if (!pdfFile && !(payload as any).subjectId && !(payload as any).unitId) {
+      if (!pdfFile && !jsonPayload.subjectId && !jsonPayload.unitId) {
         toast.error("A subject is required to save content");
         setLoading(false);
         return;
@@ -274,7 +276,7 @@ export function JsonContentForm({
         : "/admin/content";
       const method = isEditing ? api.put : api.post;
 
-      const res = await method(endpoint, payload);
+      const res = await method(endpoint, pdfFile ? pdfPayload : jsonPayload);
 
       if (!res.success) {
         toast.error(res.error?.message || "Failed to save content");
