@@ -109,6 +109,19 @@ const login = {
   }),
 };
 
+const forgotPassword = {
+  body: Joi.object({
+    email: Joi.string().email().required(),
+  }),
+};
+
+const resetPassword = {
+  body: Joi.object({
+    token: Joi.string().required(),
+    newPassword: passwordField.required(),
+  }),
+};
+
 const updateProfile = {
   body: Joi.object({
     fullName: Joi.string().min(2).max(100),
@@ -522,6 +535,8 @@ module.exports = {
   // Auth
   signup,
   login,
+  forgotPassword,
+  resetPassword,
   updateProfile,
   // Subjects
   getSubjects,

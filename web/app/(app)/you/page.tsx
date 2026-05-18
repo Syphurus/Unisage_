@@ -1,6 +1,9 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { authAPI } from "@/lib/api";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useSessionStats, useQuizAttempts } from "@/lib/hooks/useProgress";
 import { useTheme } from "@/lib/hooks/useTheme";
@@ -11,11 +14,14 @@ import {
   SectionHeader,
   StatTile,
 } from "@/components/unisage/primitives";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Bell,
   Bookmark,
   ChevronRight,
   GraduationCap,
+  KeyRound,
   LogOut,
   Moon,
   Plug,
@@ -27,6 +33,11 @@ export default function YouPage() {
   const { theme, toggleTheme } = useTheme();
   const { stats } = useSessionStats();
   const { attempts } = useQuizAttempts();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const initials = user?.fullName
     ? user.fullName
@@ -44,6 +55,95 @@ export default function YouPage() {
   ]
     .filter(Boolean)
     .join(" · ");
+
+  const validatePassword = () => {
+    const nextErrors: Record<string, string> = {};
+
+    if (!currentPassword) {
+      nextErrors.currentPassword = "Current password is required";
+    }
+
+    if (!newPassword) {
+      nextErrors.newPassword = "New password is required";
+    } else if (newPassword.length < 8) {
+      nextErrors.newPassword = "Password must be at least 8 characters";
+    } else if (!/[a-z]/.test(newPassword)) {
+      nextErrors.newPassword = "Password must include at least 1 lowercase letter";
+    } else if (!/[A-Z]/.test(newPassword)) {
+      nextErrors.newPassword = "Password must include at least 1 uppercase letter";
+    } else if (!/\d/.test(newPassword)) {
+      nextErrors.newPassword = "Password must include at least 1 number";
+    }
+
+    if (!confirmPassword) {
+      nextErrors.confirmPassword = "Please confirm your new password";
+    } else if (newPassword && confirmPassword !== newPassword) {
+      nextErrors.confirmPassword = "Passwords do not match";
+    }
+
+    if (currentPassword && newPassword && currentPassword === newPassword) {
+      nextErrors.newPassword =
+        "New password must be different from your current password";
+    }
+
+    return nextErrors;
+  };
+
+  const resetPasswordForm = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordErrors({});
+  };
+
+  const handleChangePassword = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const nextErrors = validatePassword();
+    setPasswordErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await authAPI.changePassword({
+        currentPassword,
+        newPassword,
+      });
+      toast.success("Password updated successfully");
+      resetPasswordForm();
+    } catch (error: unknown) {
+      const message =
+        (typeof error === "object" && error && "message" in error
+          ? String(error.message)
+          : null) ||
+        (typeof error === "object" &&
+        error &&
+        "data" in error &&
+        typeof error.data === "object" &&
+        error.data &&
+        "message" in error.data
+          ? String(error.data.message)
+          : null) ||
+        (typeof error === "object" &&
+        error &&
+        "response" in error &&
+        typeof error.response === "object" &&
+        error.response &&
+        "data" in error.response &&
+        typeof error.response.data === "object" &&
+        error.response.data &&
+        "message" in error.response.data
+          ? String(error.response.data.message)
+          : null) ||
+        "Unable to update password";
+      toast.error(message);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -131,6 +231,12 @@ export default function YouPage() {
               href="/bookmarks"
             />
             <SettingsRow
+              icon={KeyRound}
+              title="Change password"
+              subtitle="Update your account password"
+              href="#change-password"
+            />
+            <SettingsRow
               icon={Plug}
               title="Connected accounts"
               subtitle="Google · UPES SSO"
@@ -143,6 +249,69 @@ export default function YouPage() {
               destructive
             />
           </ul>
+        </Section>
+      </PageContainer>
+
+      <PageContainer>
+        <Section density="compact" className="pb-6">
+          <div
+            id="change-password"
+            className="rounded-card border border-white/[0.06] bg-[rgb(var(--bg-elev))] p-5 lg:p-7"
+          >
+            <SectionHeader title="Change password" />
+            <p className="mt-2 text-[13px] text-chalk-400">
+              Keep your account secure with a fresh password.
+            </p>
+
+            <form
+              className="mt-5 grid max-w-xl gap-4"
+              onSubmit={handleChangePassword}
+            >
+              <Input
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                placeholder="Current password"
+                autoComplete="current-password"
+                error={passwordErrors.currentPassword}
+              />
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="New password"
+                autoComplete="new-password"
+                error={passwordErrors.newPassword}
+              />
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Confirm new password"
+                autoComplete="new-password"
+                error={passwordErrors.confirmPassword}
+              />
+
+              <p className="text-[12px] text-chalk-400">
+                Password must be at least 8 characters and include uppercase,
+                lowercase, and a number.
+              </p>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button type="submit" isLoading={isChangingPassword}>
+                  Update password
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={resetPasswordForm}
+                  disabled={isChangingPassword}
+                >
+                  Clear
+                </Button>
+              </div>
+            </form>
+          </div>
         </Section>
       </PageContainer>
 
