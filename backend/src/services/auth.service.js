@@ -5,7 +5,11 @@
 
 const bcrypt = require("bcrypt");
 const { supabase } = require("../config/database");
-const { generateToken } = require("../utils/jwt");
+const {
+  generateToken,
+  generatePasswordResetToken,
+  verifyPasswordResetToken,
+} = require("../utils/jwt");
 const {
   AuthError,
   ConflictError,
@@ -246,6 +250,85 @@ async function login(email, password) {
 }
 
 /**
+ * Issue a short-lived password reset token for the given email.
+ *
+ * @param {string} email
+ * @returns {Promise<{resetToken: string, expiresInMinutes: number}>}
+ */
+async function requestPasswordReset(email) {
+  const normalizedEmail = String(email).toLowerCase();
+
+  const { data: userRows, error } = await supabase
+    .from("users")
+    .select("id, email, is_active")
+    .eq("email", normalizedEmail)
+    .limit(1);
+
+  if (error) {
+    logger.error("Password reset lookup failed", {
+      error: error.message,
+      code: error.code,
+      email: normalizedEmail,
+    });
+    throw new Error("Failed to request password reset");
+  }
+
+  const user = Array.isArray(userRows) ? userRows[0] : userRows;
+
+  if (!user) {
+    throw new NotFoundError("Account");
+  }
+
+  if (!user.is_active) {
+    throw new AuthError("Account is deactivated. Contact support.");
+  }
+
+  const resetToken = generatePasswordResetToken({
+    userId: user.id,
+    email: user.email,
+  });
+
+  return {
+    resetToken,
+    expiresInMinutes: 30,
+  };
+}
+
+/**
+ * Reset the user's password from a short-lived reset token.
+ *
+ * @param {string} token
+ * @param {string} newPassword
+ * @returns {Promise<{message: string}>}
+ */
+async function resetPassword(token, newPassword) {
+  const decoded = verifyPasswordResetToken(token);
+
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+
+  const { data: user, error } = await supabase
+    .from("users")
+    .update({ password_hash: passwordHash })
+    .eq("id", decoded.userId)
+    .eq("email", decoded.email.toLowerCase())
+    .select("id")
+    .single();
+
+  if (error || !user) {
+    logger.error("Password reset update failed", {
+      error: error?.message,
+      userId: decoded.userId,
+      email: decoded.email,
+    });
+    throw new Error("Failed to reset password");
+  }
+
+  return {
+    message: "Password updated successfully",
+  };
+}
+
+/**
  * Get full profile for the authenticated user.
  *
  * @param {string} userId
@@ -372,4 +455,11 @@ async function updateProfile(userId, updates) {
   };
 }
 
-module.exports = { signup, login, getProfile, updateProfile };
+module.exports = {
+  signup,
+  login,
+  requestPasswordReset,
+  resetPassword,
+  getProfile,
+  updateProfile,
+};

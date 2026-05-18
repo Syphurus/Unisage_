@@ -45,6 +45,42 @@ async function login(req, res, next) {
 }
 
 /**
+ * POST /api/auth/forgot-password
+ * Issue a short-lived reset token for the user's email.
+ */
+async function forgotPassword(req, res, next) {
+  try {
+    const { email } = req.body;
+    const result = await authService.requestPasswordReset(email);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/auth/reset-password
+ * Reset the password using a valid short-lived token.
+ */
+async function resetPassword(req, res, next) {
+  try {
+    const { token, newPassword } = req.body;
+    const result = await authService.resetPassword(token, newPassword);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * POST /api/auth/logout
  * Stateless JWT — nothing to invalidate server-side for MVP.
  * Client should discard the token.
@@ -96,4 +132,12 @@ async function updateMe(req, res, next) {
   }
 }
 
-module.exports = { signup, login, logout, getMe, updateMe };
+module.exports = {
+  signup,
+  login,
+  forgotPassword,
+  resetPassword,
+  logout,
+  getMe,
+  updateMe,
+};

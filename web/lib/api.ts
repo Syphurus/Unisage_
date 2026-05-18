@@ -70,6 +70,16 @@ export const authAPI = {
       "/api/auth/login",
       data
     ),
+  requestPasswordReset: (data: { email: string }) =>
+    api.post<unknown, ApiRes<{ resetToken: string; expiresInMinutes: number }>>(
+      "/api/auth/forgot-password",
+      data
+    ),
+  resetPassword: (data: { token: string; newPassword: string }) =>
+    api.post<unknown, ApiRes<{ message: string }>>(
+      "/api/auth/reset-password",
+      data
+    ),
   me: () => api.get<unknown, ApiRes<User>>("/api/auth/me"),
   updateProfile: (data: {
     fullName?: string;

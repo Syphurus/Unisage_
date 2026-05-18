@@ -28,6 +28,26 @@ function generateToken(payload) {
 }
 
 /**
+ * Generate a short-lived token for password reset.
+ *
+ * @param {Object} payload
+ * @param {string} payload.userId
+ * @param {string} payload.email
+ * @returns {string}
+ */
+function generatePasswordResetToken(payload) {
+  return jwt.sign(
+    {
+      userId: payload.userId,
+      email: payload.email,
+      type: "password_reset",
+    },
+    env.JWT_SECRET,
+    { expiresIn: "30m" }
+  );
+}
+
+/**
  * Verify and decode a JWT token.
  *
  * @param {string} token - JWT to verify
@@ -48,4 +68,24 @@ function verifyToken(token) {
   }
 }
 
-module.exports = { generateToken, verifyToken };
+/**
+ * Verify a password reset token.
+ *
+ * @param {string} token
+ * @returns {Object}
+ */
+function verifyPasswordResetToken(token) {
+  const decoded = verifyToken(token);
+  if (decoded.type !== "password_reset") {
+    throw new AuthError("Invalid reset token. Please request a new one.");
+  }
+
+  return decoded;
+}
+
+module.exports = {
+  generateToken,
+  generatePasswordResetToken,
+  verifyToken,
+  verifyPasswordResetToken,
+};

@@ -100,6 +100,14 @@ export default function LoginPage() {
                 {errors.password.message}
               </p>
             )}
+            <div className="mt-2 text-right">
+              <Link
+                href="/forgot-password"
+                className="text-[12px] font-medium text-mint-400 hover:text-mint-300"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           <p className="pt-1 text-center text-[13px] text-chalk-400">
